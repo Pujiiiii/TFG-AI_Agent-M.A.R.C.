@@ -1,0 +1,18 @@
+use_default_settings: true
+server:
+  secret_key: "una_clau_secreta_super_llarga_per_al_tfg"
+  bind_address: "0.0.0.0"
+  port: 8080
+search:
+  formats:
+    - html
+    - json
+engines:
+  - name: duckduckgo
+    engine: duckduckgo
+    shortcut: ddg
+    enabled: true
+  - name: wikipedia
+    engine: wikipedia
+    shortcut: wiki
+    enabled: true

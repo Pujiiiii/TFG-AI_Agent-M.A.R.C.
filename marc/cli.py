@@ -1,4 +1,4 @@
-from core.agent import get_agent_executor
+from marc.core.agent import get_agent_executor
 
 def main():
     print("🤖 Inicialitzant el nucli de M.A.R.C. (Mòdul d'Assistència i Resposta Computacional)...")
