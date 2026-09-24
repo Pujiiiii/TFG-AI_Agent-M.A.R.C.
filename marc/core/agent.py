@@ -9,7 +9,9 @@ from marc.core.tools import (
     llegir_arxiu, 
     crear_carpeta, 
     esborrar_arxiu, 
-    buscar_informacio_internet
+    buscar_informacio_internet,
+    buscar_text_en_projecte,
+    editar_arxiu_amb_diff
 )
 
 load_dotenv()
@@ -26,7 +28,9 @@ def get_agent_executor():
         llegir_arxiu, 
         crear_carpeta, 
         esborrar_arxiu, 
-        buscar_informacio_internet
+        buscar_informacio_internet,
+        buscar_text_en_projecte,
+        editar_arxiu_amb_diff
     ]
     
     prompt = ChatPromptTemplate.from_messages([
