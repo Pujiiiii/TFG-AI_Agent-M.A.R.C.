@@ -6,6 +6,7 @@ ULTIMA_ACCIO_GENERADA = None
 def registrar_accio(tipus: str, resum: str, dades: dict, funcio_execucio) -> dict:
     global ULTIMA_ACCIO_GENERADA
     action_id = str(uuid.uuid4())[:8]
+    
     info = {
         "action_id": action_id,
         "type": tipus,
@@ -23,7 +24,6 @@ def registrar_accio(tipus: str, resum: str, dades: dict, funcio_execucio) -> dic
     }
 
 def consumir_ultima_accio():
-    """Retorna i neteja l'última acció generada en el torn actual."""
     global ULTIMA_ACCIO_GENERADA
     accio = ULTIMA_ACCIO_GENERADA
     ULTIMA_ACCIO_GENERADA = None

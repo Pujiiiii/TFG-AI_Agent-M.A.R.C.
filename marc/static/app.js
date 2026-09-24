@@ -1,3 +1,4 @@
+// ELEMENTS DOM PRINCIPALS
 const chatMessages = document.getElementById("chat-messages");
 const chatForm = document.getElementById("chat-form");
 const userInput = document.getElementById("user-input");
@@ -8,17 +9,33 @@ const btnNewSession = document.getElementById("btn-new-session");
 const sessionSelect = document.getElementById("session-select");
 const currentSessionLabel = document.getElementById("current-session-label");
 
+// ELEMENTS MODAL
+const diffModal = document.getElementById("diff-modal");
+const modalSummary = document.getElementById("modal-summary");
+const modalTabs = document.getElementById("modal-tabs");
+const codeBefore = document.getElementById("code-before");
+const codeAfter = document.getElementById("code-after");
+const filenameOrig = document.getElementById("diff-filename-orig");
+const commandView = document.getElementById("command-view");
+const commandText = document.getElementById("command-text");
+const diffViewerWrapper = document.querySelector(".diff-viewer-wrapper");
+const modalCloseBtn = document.getElementById("modal-close-btn");
+const modalApproveBtn = document.getElementById("modal-approve-btn");
+const modalRejectBtn = document.getElementById("modal-reject-btn");
+
 let currentSession = "sessio_per_defecte";
+let currentActiveAction = null;
 
 // Configurar Marked per a utilitzar Highlight.js
 marked.setOptions({
   highlight: function(code, lang) {
-    const language = highlight.getLanguage(lang) ? lang : 'plaintext';
+    const language = hljs.getLanguage(lang) ? lang : 'plaintext';
     return hljs.highlight(code, { language }).value;
   },
   breaks: true
 });
 
+// Renderitzar l'arbre jeràrquic de fitxers i carpetes
 function renderTree(nodes, container) {
   container.innerHTML = "";
   const ul = document.createElement("div");
@@ -49,7 +66,6 @@ function renderTree(nodes, container) {
       fileDiv.className = "tree-file";
       fileDiv.innerHTML = `📄 <span>${node.name}</span>`;
       
-      // En fer clic a un fitxer, prepara una petició per analitzar-lo
       fileDiv.addEventListener("click", () => {
         userInput.value = `Explica'm el fitxer ${node.path} i què fa.`;
         userInput.focus();
@@ -60,6 +76,7 @@ function renderTree(nodes, container) {
   container.appendChild(ul);
 }
 
+// Consultar estat del sistema, serveis i arbre d'arxius
 async function fetchSystemStatus() {
   try {
     const res = await fetch("/api/system-status");
@@ -74,7 +91,7 @@ async function fetchSystemStatus() {
       statusSearxng.classList.remove("offline");
     }
 
-    // Actualitzar sessions disponibles al selector
+    // Actualitzar llista de sessions
     const existing = Array.from(sessionSelect.options).map(o => o.value);
     data.sessions.forEach(s => {
       if (!existing.includes(s)) {
@@ -85,7 +102,7 @@ async function fetchSystemStatus() {
       }
     });
 
-    // Renderitzar arbre jeràrquic
+    // Renderitzar arbre
     renderTree(data.file_tree, fileTreeContainer);
 
   } catch (err) {
@@ -93,7 +110,8 @@ async function fetchSystemStatus() {
   }
 }
 
-function appendMessage(sender, rawText, isUser = false, pendingAction = null) {
+// Afegir missatge al xat
+function appendMessage(sender, rawText, isUser = false) {
   const msgDiv = document.createElement("div");
   msgDiv.className = `message ${isUser ? "user" : "assistant"}`;
   
@@ -108,53 +126,6 @@ function appendMessage(sender, rawText, isUser = false, pendingAction = null) {
     bodyDiv.textContent = rawText;
   } else {
     bodyDiv.innerHTML = marked.parse(rawText);
-
-    // Si hi ha una acció pendent, afegim el bloc de confirmació amb els dos botons
-    if (pendingAction) {
-      const actionBox = document.createElement("div");
-      actionBox.className = "action-box";
-
-      actionBox.innerHTML = `
-        <div class="action-title">⚠️ AUTORITZACIÓ REQUERIDA: ${pendingAction.summary}</div>
-        <div class="action-buttons" id="btns-${pendingAction.action_id}">
-          <button class="btn-action btn-approve" data-id="${pendingAction.action_id}" data-action="approve">✓ ACCEPTAR I APLICAR</button>
-          <button class="btn-action btn-reject" data-id="${pendingAction.action_id}" data-action="reject">✕ REBUTJAR</button>
-        </div>
-      `;
-
-      bodyDiv.appendChild(actionBox);
-
-      // Gestionar els clics als botons
-      const approveBtn = actionBox.querySelector('.btn-approve');
-      const rejectBtn = actionBox.querySelector('.btn-reject');
-      const btnsContainer = actionBox.querySelector(`#btns-${pendingAction.action_id}`);
-
-      const handleConfirm = async (approved) => {
-        approveBtn.disabled = true;
-        rejectBtn.disabled = true;
-
-        try {
-          const res = await fetch("/api/confirm-action", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              action_id: pendingAction.action_id,
-              approved: approved,
-              session_id: currentSession
-            })
-          });
-          const result = await res.json();
-          
-          btnsContainer.innerHTML = `<span class="action-status-resolved">${approved ? "🟢 Aprovat:" : "🔴 Rebutjat:"} ${result.message}</span>`;
-          fetchSystemStatus(); // Refrescar arbre de fitxers si s'ha aplicat un canvi
-        } catch (err) {
-          btnsContainer.innerHTML = `<span style="color:#ff3366">Error enviant confirmació: ${err.message}</span>`;
-        }
-      };
-
-      approveBtn.addEventListener("click", () => handleConfirm(true));
-      rejectBtn.addEventListener("click", () => handleConfirm(false));
-    }
   }
 
   msgDiv.appendChild(authorDiv);
@@ -165,41 +136,97 @@ function appendMessage(sender, rawText, isUser = false, pendingAction = null) {
   return bodyDiv;
 }
 
-// Canvi de sessió
-sessionSelect.addEventListener("change", (e) => {
-  currentSession = e.target.value;
-  currentSessionLabel.textContent = currentSession;
-  chatMessages.innerHTML = "";
-  appendMessage("M.A.R.C.", `Has canviat a la sessió **${currentSession}**.`);
-});
+// OBRIR LA MODAL INTERACTIVA DE DIFF / RUNNER
+function obrirModalDiff(pendingAction) {
+  currentActiveAction = pendingAction;
+  modalSummary.textContent = pendingAction.summary;
+  diffModal.classList.remove("hidden");
 
-// Crear nova sessió
-btnNewSession.addEventListener("click", () => {
-  const nom = prompt("Nom de la nova sessió:");
-  if (nom && nom.trim()) {
-    const cleanNom = nom.trim().replace(/\s+/g, "_");
-    const opt = document.createElement("option");
-    opt.value = cleanNom;
-    opt.textContent = cleanNom;
-    sessionSelect.appendChild(opt);
-    sessionSelect.value = cleanNom;
-    currentSession = cleanNom;
-    currentSessionLabel.textContent = currentSession;
-    chatMessages.innerHTML = "";
-    appendMessage("M.A.R.C.", `Nova sessió **${cleanNom}** iniciada.`);
+  // Cas 1: Execució de comanda / script
+  if (pendingAction.type === "exec") {
+    diffViewerWrapper.classList.add("hidden");
+    modalTabs.classList.add("hidden");
+    commandView.classList.remove("hidden");
+    commandText.textContent = pendingAction.command || "(Cap ordre especificada)";
+    hljs.highlightElement(commandText);
+    return;
   }
-});
 
+  // Cas 2: Diff / Modificació de fitxers
+  commandView.classList.add("hidden");
+  diffViewerWrapper.classList.remove("hidden");
+  modalTabs.classList.remove("hidden");
+  modalTabs.innerHTML = "";
+
+  const files = pendingAction.files || [];
+
+  function mostrarFitxer(index) {
+    const f = files[index];
+    filenameOrig.textContent = f.ruta;
+    codeBefore.textContent = f.contingut_antic || "(Nou fitxer)";
+    codeAfter.textContent = f.contingut_nou || "";
+    hljs.highlightElement(codeBefore);
+    hljs.highlightElement(codeAfter);
+
+    document.querySelectorAll(".tab-btn").forEach((btn, idx) => {
+      btn.classList.toggle("active", idx === index);
+    });
+  }
+
+  // Crear pestanyes si hi ha múltiples fitxers
+  files.forEach((f, idx) => {
+    const tab = document.createElement("button");
+    tab.className = `tab-btn ${idx === 0 ? "active" : ""}`;
+    tab.textContent = f.ruta.split(/[\\/]/).pop();
+    tab.addEventListener("click", () => mostrarFitxer(idx));
+    modalTabs.appendChild(tab);
+  });
+
+  if (files.length > 0) {
+    mostrarFitxer(0);
+  }
+}
+
+// RESPONDRE A L'ACCIÓ (APROVAR O REBUTJAR)
+async function respondreAccio(aprovat) {
+  if (!currentActiveAction) return;
+  modalApproveBtn.disabled = true;
+  modalRejectBtn.disabled = true;
+
+  try {
+    const res = await fetch("/api/confirm-action", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action_id: currentActiveAction.action_id,
+        approved: aprovat,
+        session_id: currentSession
+      })
+    });
+    const result = await res.json();
+    diffModal.classList.add("hidden");
+    appendMessage("M.A.R.C.", `${aprovat ? "🟢 **Aprovat:**" : "🔴 **Rebutjat:**"} ${result.message}`);
+    fetchSystemStatus();
+  } catch (err) {
+    alert("Error enviant la decisió: " + err.message);
+  } finally {
+    modalApproveBtn.disabled = false;
+    modalRejectBtn.disabled = false;
+    currentActiveAction = null;
+  }
+}
+
+// GESTIÓ DEL FORMULARI DE XAT (SUBMIT) SENCER
 chatForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const text = userInput.value.trim();
   if (!text) return;
 
-  // 1. Mostrem el missatge de l'usuari i netegem l'input
+  // 1. Mostrar missatge de l'usuari
   appendMessage("USER", text, true);
   userInput.value = "";
 
-  // 2. Creem el missatge temporal d'espera
+  // 2. Missatge temporal de càrrega
   const loadingMsg = appendMessage("M.A.R.C.", "Processant comanda...");
 
   try {
@@ -219,17 +246,20 @@ chatForm.addEventListener("submit", async (e) => {
 
     const data = await res.json();
 
-    // 3. Eliminem el missatge temporal de càrrega
+    // 3. Eliminar missatge temporal
     if (loadingMsg && loadingMsg.parentElement) {
       chatMessages.removeChild(loadingMsg.parentElement);
     }
 
-    // 4. Inserim la resposta definitiva (i els botons d'acció si n'hi ha)
-    appendMessage("M.A.R.C.", data.response, false, data.pending_action);
+    // 4. Mostrar resposta de M.A.R.C.
+    appendMessage("M.A.R.C.", data.response);
+
+    // 5. Si hi ha una acció pendent, obrim directament la finestra emergent interactiva
+    if (data.pending_action) {
+      obrirModalDiff(data.pending_action);
+    }
 
     chatMessages.scrollTop = chatMessages.scrollHeight;
-
-    // 5. Refresquem l'arbre de fitxers i l'estat del sistema
     fetchSystemStatus();
 
   } catch (err) {
@@ -239,6 +269,34 @@ chatForm.addEventListener("submit", async (e) => {
   }
 });
 
-btnRefresh.addEventListener("click", fetchSystemStatus);
+// ESDEVENIMENTS DE SESSIONS I MODAL
+sessionSelect.addEventListener("change", (e) => {
+  currentSession = e.target.value;
+  currentSessionLabel.textContent = currentSession;
+  chatMessages.innerHTML = "";
+  appendMessage("M.A.R.C.", `Has canviat a la sessió **${currentSession}**.`);
+});
 
+btnNewSession.addEventListener("click", () => {
+  const nom = prompt("Nom de la nova sessió:");
+  if (nom && nom.trim()) {
+    const cleanNom = nom.trim().replace(/\s+/g, "_");
+    const opt = document.createElement("option");
+    opt.value = cleanNom;
+    opt.textContent = cleanNom;
+    sessionSelect.appendChild(opt);
+    sessionSelect.value = cleanNom;
+    currentSession = cleanNom;
+    currentSessionLabel.textContent = currentSession;
+    chatMessages.innerHTML = "";
+    appendMessage("M.A.R.C.", `Nova sessió **${cleanNom}** iniciada.`);
+  }
+});
+
+btnRefresh.addEventListener("click", fetchSystemStatus);
+modalApproveBtn.addEventListener("click", () => respondreAccio(true));
+modalRejectBtn.addEventListener("click", () => respondreAccio(false));
+modalCloseBtn.addEventListener("click", () => diffModal.classList.add("hidden"));
+
+// Càrrega inicial
 fetchSystemStatus();

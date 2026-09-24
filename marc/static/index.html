@@ -82,6 +82,49 @@
     </main>
   </div>
 
+  <!-- MODAL DE REVISIÓ DE CANVIS (DIFF / RUNNER) -->
+  <div id="diff-modal" class="modal-overlay hidden">
+    <div class="modal-window">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span class="diff-tag">STAGING</span>
+          <span id="modal-summary">Revisió de Proposta</span>
+        </div>
+        <button id="modal-close-btn" class="close-x">&times;</button>
+      </div>
+
+      <!-- Selector de pestanyes quan hi ha més d'un fitxer -->
+      <div id="modal-tabs" class="modal-tabs"></div>
+
+      <!-- Zona de comparació (Abans vs Després) -->
+      <div class="modal-body">
+        <div class="diff-viewer-wrapper">
+          <div class="diff-pane">
+            <div class="pane-header">ORIGINAL (<span id="diff-filename-orig">file</span>)</div>
+            <pre><code id="code-before" class="language-python"></code></pre>
+          </div>
+          <div class="diff-pane">
+            <div class="pane-header new-header">PROPOSTA DE M.A.R.C.</div>
+            <pre><code id="code-after" class="language-python"></code></pre>
+          </div>
+        </div>
+        <!-- Vista alternativa per comandes de consola -->
+        <div id="command-view" class="command-view hidden">
+          <div class="pane-header">ORDRE A EXECUTAR A LA RASPBERRY PI / PC:</div>
+          <pre><code id="command-text" class="language-bash"></code></pre>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <span class="modal-hint">Revisa les diferències abans de validar l'escriptura o execució.</span>
+        <div class="modal-actions">
+          <button id="modal-reject-btn" class="btn-action btn-reject">✕ REBUTJAR CANVIS</button>
+          <button id="modal-approve-btn" class="btn-action btn-approve">✓ APROVAR I EXECUTAR</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="/static/app.js"></script>
 </body>
 </html>

@@ -14,7 +14,8 @@ from marc.core.tools import (
     buscar_text_en_projecte,
     editar_arxiu_amb_diff,
     visitar_pagina_web,
-    descarregar_recurs_internet
+    descarregar_recurs_internet,
+    executar_script_o_comanda
 )
 
 load_dotenv()
@@ -29,8 +30,8 @@ def get_session_history(session_id: str):
 
 def get_agent_executor():
     llm = ChatGroq(
-        model="openai/gpt-oss-120b", 
-        temperature=0.3
+        model="llama-3.3-70b-versatile",
+        temperature=0.2
     )
     
     tools = [
@@ -42,7 +43,8 @@ def get_agent_executor():
         buscar_text_en_projecte,
         editar_arxiu_amb_diff,
         visitar_pagina_web,
-        descarregar_recurs_internet
+        descarregar_recurs_internet,
+        executar_script_o_comanda
     ]
     
     prompt = ChatPromptTemplate.from_messages([
@@ -53,7 +55,7 @@ def get_agent_executor():
     ])
     
     agent = create_tool_calling_agent(llm, tools, prompt)
-    return AgentExecutor(agent=agent, tools=tools, verbose=True, max_iterations=15)
+    return AgentExecutor(agent=agent, tools=tools, verbose=True, max_iterations=8)
 
 # Instància base de l'executor
 _executor = get_agent_executor()

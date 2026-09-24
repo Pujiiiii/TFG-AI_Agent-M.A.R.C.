@@ -1,6 +1,7 @@
 import os
 import requests
 import difflib
+import subprocess
 from bs4 import BeautifulSoup
 from langchain_core.tools import tool
 from marc.core.actions import registrar_accio
@@ -154,18 +155,31 @@ def editar_arxiu_amb_diff(ruta: str, text_a_substituir: str, text_nou: str) -> s
         diff_text = "".join(diff)
 
         def aplicar_edicio(data):
-            with open(data["ruta"], "w", encoding="utf-8") as f:
-                f.write(data["contingut"])
-            return f"Canvis aplicats correctament a {data['ruta']}."
+            # Admet un fitxer o llista de fitxers
+            fitxers = data.get("files", [data])
+            resums = []
+            for f_info in fitxers:
+                with open(f_info["ruta"], "w", encoding="utf-8") as f:
+                    f.write(f_info["contingut_nou"])
+                resums.append(f_info["ruta"])
+            return f"Canvis aplicats amb èxit a: {', '.join(resums)}"
+
+        # Preparem l'estructura multifitxer
+        files_data = [{
+            "ruta": ruta,
+            "contingut_antic": contingut_actual,
+            "contingut_nou": contingut_modificat,
+            "diff": diff_text
+        }]
 
         accio = registrar_accio(
             tipus="diff",
-            resum=f"Modificar l'arxiu {ruta}",
-            dades={"ruta": ruta, "contingut": contingut_modificat, "diff": diff_text},
+            resum=f"Modificació a {ruta}",
+            dades={"files": files_data},
             funcio_execucio=aplicar_edicio
         )
 
-        return f"[ACCIÓ PENDENT DE CONFIRMACIÓ]\nID: {accio['action_id']}\nTipus: Edició amb diff\nRuta: {ruta}\n```diff\n{diff_text}\n```"
+        return f"S'ha generat una proposta de modificació per a {ruta}. Revisa la finestra emergent a la interfície per inspeccionar el codi."
 
     except Exception as e:
         return f"Error en preparar l'edició: {e}"
@@ -219,3 +233,31 @@ def descarregar_recurs_internet(url: str, nom_fitxer_desti: str) -> str:
     )
 
     return f"[ACCIÓ PENDENT DE CONFIRMACIÓ]\nID: {accio['action_id']}\nTipus: Descàrrega\nURL: {url}\nDestí: {nom_fitxer_desti}"
+
+@tool
+def executar_script_o_comanda(comanda: str) -> str:
+    """
+    Executa un script o ordre del sistema (ex: 'python script.py', 'pip install ...').
+    SEMPRE sol·licita aprovació interactiva a l'usuari abans d'executar-se.
+    """
+    def aplicar_execucio(data):
+        cmd = data["comanda"]
+        # Executem capturant sortida estàndard i errors
+        proc = subprocess.run(
+            cmd,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=60
+        )
+        sortida = proc.stdout if proc.stdout else "(Sense sortida estàndard)"
+        errors = f"\nErrors:\n{proc.stderr}" if proc.stderr else ""
+        return f"Codi de retorn: {proc.returncode}\nSortida:\n{sortida}{errors}"
+
+    accio = registrar_accio(
+        tipus="exec",
+        resum=f"Executar ordre: `{comanda}`",
+        dades={"comanda": comanda},
+        funcio_execucio=aplicar_execucio
+    )
+    return f"S'ha preparat l'execució de la comanda: `{comanda}` (ID acció: {accio['action_id']}). Esperant aprovació."

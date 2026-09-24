@@ -1,5 +1,6 @@
 import os
 import requests
+import groq
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -59,12 +60,18 @@ def construir_arbre(ruta="."):
 
 @app.post("/chat")
 def xat(peticio: ChatRequest):
-    resposta = agent_amb_historial.invoke(
-        {"input": peticio.message},
-        config={"configurable": {"session_id": peticio.session_id}}
-    )
+    try:
+        resposta = agent_amb_historial.invoke(
+            {"input": peticio.message},
+            config={"configurable": {"session_id": peticio.session_id}}
+        )
+        output_text = resposta["output"]
+    except groq.RateLimitError:
+        output_text = "⚠️ **Límit d'ús assolit (Rate Limit 429)**: Groq ha limitat temporalment les peticions per minut. Espera uns segons i torna a provar-ho."
+    except Exception as e:
+        output_text = f"⚠️ S'ha produït un error en executar la sol·licitud: {str(e)}"
     
-    # Comprovem si alguna eina ha registrat una acció durant aquest torn
+    # Comprovem si durant aquesta execució s'ha generat alguna acció
     accio = consumir_ultima_accio()
     pending = None
     if accio:
@@ -72,11 +79,12 @@ def xat(peticio: ChatRequest):
             "action_id": accio["action_id"],
             "type": accio["type"],
             "summary": accio["summary"],
-            "diff": accio["data"].get("diff", "")
+            "files": accio["data"].get("files", []),
+            "command": accio["data"].get("comanda", "")
         }
 
     return {
-        "response": resposta["output"],
+        "response": output_text,
         "pending_action": pending
     }
 
