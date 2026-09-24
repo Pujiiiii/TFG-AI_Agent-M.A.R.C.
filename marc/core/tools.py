@@ -1,7 +1,9 @@
 import os
 import requests
 import difflib
+from bs4 import BeautifulSoup
 from langchain_core.tools import tool
+from marc.core.actions import registrar_accio
 
 @tool
 def llistar_arxius(directori: str = "marc_test_dropzone") -> str:
@@ -15,33 +17,6 @@ def llistar_arxius(directori: str = "marc_test_dropzone") -> str:
         return f"Arxius trobats al directori '{directori}': {', '.join(arxius)}"
     except Exception as e:
         return f"Error en llegir el directori: {e}"
-
-@tool
-def editar_arxiu(ruta: str, nou_contingut: str) -> str:
-    """
-    Modifica o crea un arxiu amb el contingut proporcionat.
-    Utilitza aquesta eina sempre que l'usuari et demani escriure, modificar o refactoritzar codi.
-    """
-    # 1. Mostrem per la terminal l'acció que vol fer la IA
-    print("\n" + "="*50)
-    print(f"⚠️ ATENCIÓ: M.A.R.C. sol·licita permís per modificar l'arxiu -> {ruta}")
-    print("--- NOU CONTINGUT PROPOSAT ---")
-    print(nou_contingut)
-    print("------------------------------")
-    
-    # 2. Human-in-the-Loop: Esperem l'aprovació manual de l'usuari
-    confirmacio = input("Aproves aquest canvi? (s/n): ")
-    
-    if confirmacio.lower() == 's':
-        try:
-            with open(ruta, 'w', encoding='utf-8') as f:
-                f.write(nou_contingut)
-            return f"Operació completada: L'usuari ha aprovat els canvis a {ruta}."
-        except Exception as e:
-            return f"Error en escriure l'arxiu: {e}"
-    else:
-        # 3. Retornem la denegació a l'agent perquè sàpiga què ha passat
-        return f"Operació cancel·lada: L'usuari ha DENEGAT la modificació de {ruta}."
 
 @tool
 def llegir_arxiu(ruta: str) -> str:
@@ -72,24 +47,22 @@ def crear_carpeta(ruta: str) -> str:
 @tool
 def esborrar_arxiu(ruta: str) -> str:
     """
-    Esborra un arxiu del sistema. Utilitza aquesta eina només quan l'usuari et demani eliminar un fitxer.
+    Sol·licita confirmació a l'usuari per eliminar un arxiu del sistema de fitxers.
     """
-    print("\n" + "="*50)
-    print(f"⚠️ PERILL: M.A.R.C. sol·licita permís per ESBORRAR l'arxiu -> {ruta}")
-    print("="*50)
-    
-    confirmacio = input("Aproves aquesta eliminació? (s/n): ")
-    
-    if confirmacio.lower() == 's':
-        try:
-            os.remove(ruta)
-            return f"Operació completada: L'usuari ha aprovat l'eliminació de {ruta}."
-        except FileNotFoundError:
-            return f"L'arxiu {ruta} no existeix."
-        except Exception as e:
-            return f"Error en esborrar l'arxiu: {e}"
-    else:
-        return f"Operació cancel·lada: L'usuari ha DENEGAT l'eliminació de {ruta}."
+    if not os.path.exists(ruta):
+        return f"L'arxiu {ruta} no existeix."
+
+    def aplicar_esborrat(data):
+        os.remove(data["ruta"])
+        return f"S'ha eliminat correctament l'arxiu {data['ruta']}."
+
+    accio = registrar_accio(
+        tipus="delete",
+        resum=f"Eliminar l'arxiu {ruta}",
+        dades={"ruta": ruta},
+        funcio_execucio=aplicar_esborrat
+    )
+    return f"[ACCIÓ PENDENT DE CONFIRMACIÓ]\nID: {accio['action_id']}\nTipus: Eliminar fitxer\nRuta: {ruta}"
 
 @tool
 def buscar_informacio_internet(consulta: str) -> str:
@@ -161,39 +134,88 @@ def buscar_text_en_projecte(paraula_clau: str, directori_base: str = ".") -> str
 @tool
 def editar_arxiu_amb_diff(ruta: str, text_a_substituir: str, text_nou: str) -> str:
     """
-    Realitza un canvi quirúrgic (substitució de text exacte) en un arxiu existent.
-    Mostra una comparació (diff) dels canvis abans de demanar l'aprovació de l'usuari.
+    Proposa un canvi quirúrgic a un fitxer mostrant un diff per a aprovació de l'usuari a la web.
     """
     try:
         with open(ruta, "r", encoding="utf-8") as f:
             contingut_actual = f.read()
-            
+
         if text_a_substituir not in contingut_actual:
-            return f"Error: No s'ha trobat el text exacte a substituir dins de {ruta}. Revisa el codi original amb llegir_arxiu primer."
-            
+            return f"Error: No s'ha trobat el text exacte a substituir dins de {ruta}."
+
         contingut_modificat = contingut_actual.replace(text_a_substituir, text_nou)
-        
+
         diff = list(difflib.unified_diff(
             contingut_actual.splitlines(keepends=True),
             contingut_modificat.splitlines(keepends=True),
             fromfile=f"a/{ruta}",
             tofile=f"b/{ruta}"
         ))
-        
-        print("\n" + "="*60)
-        print(f"⚠️ M.A.R.C. proposa un canvi quirúrgic a -> {ruta}")
-        print("="*60)
-        print("".join(diff))
-        print("="*60)
-        
-        confirmacio = input("Aproves aquesta refactorització? (s/n): ")
-        
-        if confirmacio.lower() == 's':
-            with open(ruta, "w", encoding="utf-8") as f:
-                f.write(contingut_modificat)
-            return f"Operació completada: Canvis aplicats amb èxit a {ruta}."
-        else:
-            return "Operació cancel·lada: L'usuari ha denegat la modificació del codi."
-            
+        diff_text = "".join(diff)
+
+        def aplicar_edicio(data):
+            with open(data["ruta"], "w", encoding="utf-8") as f:
+                f.write(data["contingut"])
+            return f"Canvis aplicats correctament a {data['ruta']}."
+
+        accio = registrar_accio(
+            tipus="diff",
+            resum=f"Modificar l'arxiu {ruta}",
+            dades={"ruta": ruta, "contingut": contingut_modificat, "diff": diff_text},
+            funcio_execucio=aplicar_edicio
+        )
+
+        return f"[ACCIÓ PENDENT DE CONFIRMACIÓ]\nID: {accio['action_id']}\nTipus: Edició amb diff\nRuta: {ruta}\n```diff\n{diff_text}\n```"
+
     except Exception as e:
-        return f"Error en processar l'edició de l'arxiu: {e}"
+        return f"Error en preparar l'edició: {e}"
+
+@tool
+def visitar_pagina_web(url: str) -> str:
+    """
+    Visita una pàgina web concreta (URL completa) i n'extreu el text net.
+    Útil per consultar articles, documentació oficial o contingut d'un enllaç.
+    """
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) MARC-Agent/1.0"
+    }
+    try:
+        res = requests.get(url, headers=headers, timeout=10)
+        if res.status_code != 200:
+            return f"Error en accedir a la URL: Codi de resposta {res.status_code}"
+        
+        soup = BeautifulSoup(res.text, "html.parser")
+        # Netejar scripts i estils
+        for s in soup(["script", "style", "nav", "footer"]):
+            s.decompose()
+            
+        text = soup.get_text(separator="\n", strip=True)
+        # Limitem a 3500 caràcters per no desbordar el context de l'LLM
+        return text[:3500] if len(text) > 3500 else text
+    except Exception as e:
+        return f"Error en llegir la pàgina {url}: {e}"
+
+@tool
+def descarregar_recurs_internet(url: str, nom_fitxer_desti: str) -> str:
+    """
+    Sol·licita permís per descarregar un fitxer des d'una URL cap al disc local.
+    """
+    def aplicar_descarrega(data):
+        carpeta = os.path.dirname(data["desti"])
+        if carpeta:
+            os.makedirs(carpeta, exist_ok=True)
+        r = requests.get(data["url"], stream=True, timeout=20)
+        with open(data["desti"], "wb") as f:
+            for chunk in r.iter_content(chunk_size=8192):
+                if chunk:
+                    f.write(chunk)
+        return f"Descarregat {data['desti']} correctament des de {data['url']}."
+
+    accio = registrar_accio(
+        tipus="download",
+        resum=f"Descarregar fitxer a {nom_fitxer_desti}",
+        dades={"url": url, "desti": nom_fitxer_desti},
+        funcio_execucio=aplicar_descarrega
+    )
+
+    return f"[ACCIÓ PENDENT DE CONFIRMACIÓ]\nID: {accio['action_id']}\nTipus: Descàrrega\nURL: {url}\nDestí: {nom_fitxer_desti}"

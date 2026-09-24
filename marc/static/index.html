@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>M.A.R.C. // Interface</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <!-- Markdown & Code Highlighting -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+</head>
+<body>
+  <div class="hud-container">
+    <!-- BARRA LATERAL -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="pulse-dot"></div>
+        <h2>M.A.R.C.</h2>
+        <span class="version">v1.2 // HUD</span>
+      </div>
+
+      <!-- SECCIÓ DE SESSIONS -->
+      <div class="panel">
+        <div class="panel-header">
+          <h3>// CONVERSES / SESSIONS</h3>
+          <button id="btn-new-session" title="Nova sessió">+ NOU</button>
+        </div>
+        <select id="session-select" class="session-dropdown">
+          <option value="sessio_per_defecte">sessio_per_defecte</option>
+        </select>
+      </div>
+
+      <!-- SERVEIS ACTIUS -->
+      <div class="panel">
+        <h3>// SERVEIS ACTIUS</h3>
+        <div class="status-item">
+          <span>Backend FastAPI</span>
+          <span class="badge" id="status-backend">ONLINE</span>
+        </div>
+        <div class="status-item">
+          <span>SearxNG</span>
+          <span class="badge" id="status-searxng">CHECKING...</span>
+        </div>
+      </div>
+
+      <!-- EXPLORADOR JERÀRQUIC DE FITXERS -->
+      <div class="panel file-panel">
+        <div class="panel-header">
+          <h3>// EXPLORADOR D'ARXIUS</h3>
+          <button id="btn-refresh" title="Actualitzar">↻</button>
+        </div>
+        <div id="file-tree-container" class="file-tree">
+          <div class="loading">Carregant arbre d'arxius...</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ZONA CENTRAL DE TERMINAL / XAT -->
+    <main class="main-content">
+      <header class="main-header">
+        <span class="terminal-title">&gt; TERMINAL D'ORDRES // SESSIÓ ACTIVA: <span id="current-session-label">sessio_per_defecte</span></span>
+      </header>
+
+      <section class="chat-container" id="chat-messages">
+        <div class="message assistant">
+          <div class="msg-author">M.A.R.C.</div>
+          <div class="msg-body">Sistemes inicialitzats. A punt per analitzar, cercar, descarregar o aplicar canvis a fitxers. En què et puc ajudar?</div>
+        </div>
+      </section>
+
+      <footer class="input-container">
+        <form id="chat-form">
+          <span class="prompt-arrow">&gt;</span>
+          <input type="text" id="user-input" placeholder="Demana a M.A.R.C. que investigui, descarregui o refactoritzi..." autocomplete="off">
+          <button type="submit" id="send-btn">EXEC</button>
+        </form>
+      </footer>
+    </main>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

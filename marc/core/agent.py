@@ -3,18 +3,29 @@ from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 from langchain.agents import create_tool_calling_agent, AgentExecutor
 from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.chat_history import InMemoryChatMessageHistory as ChatMessageHistory
+from langchain_core.runnables.history import RunnableWithMessageHistory
 from marc.core.tools import (
-    llistar_arxius, 
-    editar_arxiu, 
+    llistar_arxius,
     llegir_arxiu, 
     crear_carpeta, 
     esborrar_arxiu, 
     buscar_informacio_internet,
     buscar_text_en_projecte,
-    editar_arxiu_amb_diff
+    editar_arxiu_amb_diff,
+    visitar_pagina_web,
+    descarregar_recurs_internet
 )
 
 load_dotenv()
+
+# Magatzem en memòria per a les sessions
+store = {}
+
+def get_session_history(session_id: str):
+    if session_id not in store:
+        store[session_id] = ChatMessageHistory()
+    return store[session_id]
 
 def get_agent_executor():
     llm = ChatGroq(
@@ -23,24 +34,34 @@ def get_agent_executor():
     )
     
     tools = [
-        llistar_arxius, 
-        editar_arxiu, 
+        llistar_arxius,
         llegir_arxiu, 
         crear_carpeta, 
         esborrar_arxiu, 
         buscar_informacio_internet,
         buscar_text_en_projecte,
-        editar_arxiu_amb_diff
+        editar_arxiu_amb_diff,
+        visitar_pagina_web,
+        descarregar_recurs_internet
     ]
     
     prompt = ChatPromptTemplate.from_messages([
-        ("system", "Ets en M.A.R.C. (Mòdul d'Assistència i Resposta Computacional), un assistent personal autònom. Només pots fer servir les eines que tens definides i cap mes. Si fas un canvi, explica breument què has fet."),
-        ("placeholder", "{chat_history}"), # Nova línia: Espai on s'injectarà la memòria
+        ("system", "Ets en M.A.R.C. (Mòdul d'Assistència i Resposta Computacional), un assistent personal autònom. Només pots fer servir les eines que tens definides i cap mes. També disposes d'anàlisi global i edició quirúrgica amb diff. Si fas un canvi, explica breument què has fet."),
+        ("placeholder", "{chat_history}"),
         ("human", "{input}"),
         ("placeholder", "{agent_scratchpad}")
     ])
     
     agent = create_tool_calling_agent(llm, tools, prompt)
-    agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
-    
-    return agent_executor
+    return AgentExecutor(agent=agent, tools=tools, verbose=True, max_iterations=15)
+
+# Instància base de l'executor
+_executor = get_agent_executor()
+
+# Instància final connectada amb la memòria de sessions
+agent_amb_historial = RunnableWithMessageHistory(
+    _executor,
+    get_session_history,
+    input_messages_key="input",
+    history_messages_key="chat_history"
+)

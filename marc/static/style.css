@@ -1,0 +1,531 @@
+:root {
+  --bg-dark: #0a0e14;
+  --bg-panel: #111822;
+  --accent-cyan: #00f0ff;
+  --accent-green: #00ff88;
+  --text-main: #d8dee9;
+  --text-dim: #607b96;
+  --border-color: #1b2735;
+  --danger-color: #ff3366;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+  font-family: var(--font-mono);
+  height: 100vh;
+  overflow: hidden;
+}
+
+.hud-container {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+}
+
+/* ==========================================================================
+   BARRA LATERAL (HUD & SERVEIS)
+   ========================================================================== */
+.sidebar {
+  width: 320px;
+  background-color: var(--bg-panel);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  gap: 20px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.brand h2 {
+  color: var(--accent-cyan);
+  font-size: 1.2rem;
+  letter-spacing: 2px;
+}
+
+.brand .version {
+  font-size: 0.7rem;
+  color: var(--accent-green);
+  margin-left: auto;
+}
+
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-green);
+  box-shadow: 0 0 10px var(--accent-green);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.panel h3 {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+}
+
+.panel-header button {
+  background: none;
+  border: 1px solid var(--accent-cyan);
+  color: var(--accent-cyan);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  padding: 2px 7px;
+  border-radius: 3px;
+  transition: all 0.2s ease;
+}
+
+.panel-header button:hover {
+  background-color: var(--accent-cyan);
+  color: var(--bg-dark);
+}
+
+/* SELECCIÓ DE SESSIONS */
+.session-dropdown {
+  background-color: var(--bg-dark);
+  color: var(--accent-cyan);
+  border: 1px solid var(--border-color);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  padding: 8px;
+  border-radius: 4px;
+  width: 100%;
+  outline: none;
+  cursor: pointer;
+}
+
+.session-dropdown:focus {
+  border-color: var(--accent-cyan);
+}
+
+/* ESTATS DELS SERVEIS */
+.status-item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.badge {
+  color: var(--accent-green);
+  font-weight: 600;
+}
+
+.badge.offline {
+  color: var(--danger-color);
+}
+
+/* ARBRE DE FITXERS INTERACTIU */
+.file-panel {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.file-tree {
+  overflow-y: auto;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+  padding-right: 5px;
+}
+
+.tree-folder {
+  margin-left: 10px;
+}
+
+.folder-title {
+  cursor: pointer;
+  color: var(--accent-cyan);
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+}
+
+.folder-title:hover {
+  color: #fff;
+}
+
+.folder-content {
+  display: block;
+}
+
+.folder-content.collapsed {
+  display: none;
+}
+
+.tree-file {
+  margin-left: 16px;
+  cursor: pointer;
+  padding: 3px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-main);
+  transition: color 0.15s ease;
+}
+
+.tree-file:hover {
+  color: var(--accent-green);
+}
+
+.loading {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+/* ==========================================================================
+   ZONA PRINCIPAL (TERMINAL & XAT)
+   ========================================================================== */
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-dark);
+}
+
+.main-header {
+  padding: 15px 25px;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+.terminal-title #current-session-label {
+  color: var(--accent-cyan);
+  font-weight: 600;
+}
+
+.chat-container {
+  flex: 1;
+  padding: 25px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.message {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  max-width: 85%;
+}
+
+.message.user {
+  align-self: flex-end;
+}
+
+.message.assistant {
+  align-self: flex-start;
+}
+
+.msg-author {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.message.user .msg-author {
+  color: var(--accent-cyan);
+  text-align: right;
+}
+
+.message.assistant .msg-author {
+  color: var(--accent-green);
+}
+
+.msg-body {
+  background-color: var(--bg-panel);
+  padding: 14px 18px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+
+.message.user .msg-body {
+  border-color: rgba(0, 240, 255, 0.3);
+  white-space: pre-wrap;
+}
+
+/* ==========================================================================
+   FORMATAT DE MARKDOWN & BLOCS DE CODI
+   ========================================================================== */
+.msg-body p {
+  margin-bottom: 0.8em;
+}
+
+.msg-body p:last-child {
+  margin-bottom: 0;
+}
+
+.msg-body h1, .msg-body h2, .msg-body h3, .msg-body h4 {
+  color: var(--accent-cyan);
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+  font-size: 1rem;
+}
+
+.msg-body ul, .msg-body ol {
+  margin-left: 20px;
+  margin-bottom: 0.8em;
+}
+
+.msg-body li {
+  margin-bottom: 0.3em;
+}
+
+.msg-body blockquote {
+  border-left: 3px solid var(--accent-cyan);
+  padding-left: 12px;
+  margin: 10px 0;
+  color: var(--text-dim);
+}
+
+.msg-body pre {
+  background-color: #080c10 !important;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 12px;
+  margin: 12px 0;
+  overflow-x: auto;
+}
+
+.msg-body code {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+}
+
+.msg-body :not(pre) > code {
+  background-color: rgba(255, 255, 255, 0.08);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--accent-cyan);
+}
+
+.msg-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 0.82rem;
+}
+
+.msg-body th, .msg-body td {
+  border: 1px solid var(--border-color);
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.msg-body th {
+  background-color: rgba(0, 240, 255, 0.05);
+  color: var(--accent-cyan);
+}
+
+/* ==========================================================================
+   ZONA D'ENTRADA (INPUT)
+   ========================================================================== */
+.input-container {
+  padding: 20px 25px;
+  border-top: 1px solid var(--border-color);
+}
+
+#chat-form {
+  display: flex;
+  align-items: center;
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  padding: 8px 16px;
+  border-radius: 4px;
+  gap: 12px;
+}
+
+#chat-form:focus-within {
+  border-color: var(--accent-cyan);
+}
+
+.prompt-arrow {
+  color: var(--accent-cyan);
+  font-weight: 700;
+}
+
+#user-input {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--text-main);
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  outline: none;
+}
+
+#send-btn {
+  background-color: transparent;
+  color: var(--accent-cyan);
+  border: 1px solid var(--accent-cyan);
+  padding: 6px 16px;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+#send-btn:hover {
+  background-color: var(--accent-cyan);
+  color: var(--bg-dark);
+}
+
+/* ==========================================================================
+   SCROLLBARS PERSONALITZADES
+   ========================================================================== */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-dark);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-dim);
+}
+
+/* ==========================================================================
+   RESPONSIVE (Mòbil)
+   ========================================================================== */
+@media (max-width: 768px) {
+  .hud-container {
+    flex-direction: column;
+  }
+  .sidebar {
+    width: 100%;
+    height: auto;
+    max-height: 40vh;
+    padding: 15px;
+  }
+  .chat-container {
+    padding: 15px;
+  }
+  .message {
+    max-width: 95%;
+  }
+  .input-container {
+    padding: 12px 15px;
+  }
+}
+
+/* PANNELL D'APROVACIÓ D'ACCIÓ DINS DEL XAT */
+.action-box {
+  margin-top: 15px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--accent-cyan);
+  border-radius: 6px;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.action-title {
+  font-size: 0.8rem;
+  color: var(--accent-cyan);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 12px;
+}
+
+.btn-action {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  transition: all 0.2s ease;
+}
+
+.btn-approve {
+  background-color: var(--accent-green);
+  color: #05140b;
+}
+
+.btn-approve:hover {
+  background-color: #33ff9e;
+  box-shadow: 0 0 10px rgba(0, 255, 136, 0.4);
+}
+
+.btn-reject {
+  background-color: var(--danger-color);
+  color: #ffffff;
+}
+
+.btn-reject:hover {
+  background-color: #ff527b;
+  box-shadow: 0 0 10px rgba(255, 51, 102, 0.4);
+}
+
+.btn-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.action-status-resolved {
+  font-size: 0.8rem;
+  font-style: italic;
+  color: var(--text-dim);
+}
