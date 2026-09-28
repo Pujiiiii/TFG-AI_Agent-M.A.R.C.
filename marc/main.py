@@ -3,6 +3,8 @@ import shutil
 import requests
 import groq
 import subprocess
+import sys
+import ctypes
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -15,32 +17,10 @@ from marc.core.agent import agent_amb_historial, store
 from marc.core.actions import executar_accio, consumir_ultima_accio
 from marc.core.workspace import get_workspace, set_workspace
 
-
-# Variable per saber si el tancament prové exclusivament d'un Ctrl + C manual
-INTERRUPCIO_MANUAL = False
-
-def manejador_ctrl_c(signum, frame):
-    global INTERRUPCIO_MANUAL
-    INTERRUPCIO_MANUAL = True
-    # Deixem que el flux normal de finalització continuï
-    signal.default_int_handler(signum, frame)
-
-# Registrem la captura de Ctrl + C (SIGINT)
-try:
-    signal.signal(signal.SIGINT, manejador_ctrl_c)
-except Exception:
-    pass
-
-
-def auto_commit_and_push_on_shutdown():
-    """Fa commit i push només si l'aturada ha estat provocada per Ctrl + C."""
-    global INTERRUPCIO_MANUAL
-    if not INTERRUPCIO_MANUAL:
-        # És una recàrrega automàtica per canvis de codi (Ctrl + S), no fem res
-        return
-
+def fer_auto_commit_git():
+    """Detecta canvis sense desar i fa commit i push."""
     git_root = obtenir_arrel_git()
-    print("\n[M.A.R.C. Shutdown] Aturada manual detectada (Ctrl + C). Verificant Git...")
+    print("\n[M.A.R.C. Shutdown] Verificant l'estat del repositori Git...")
 
     try:
         status_res = subprocess.run(
@@ -63,7 +43,7 @@ def auto_commit_and_push_on_shutdown():
         subprocess.run(["git", "add", "-A"], cwd=git_root, check=True, timeout=15)
         subprocess.run(["git", "commit", "-m", missatge], cwd=git_root, check=True, timeout=15)
 
-        print("[M.A.R.C. Shutdown] Pujant commits al repositori remot (git push)...")
+        print("[M.A.R.C. Shutdown] Pujant commits al remot (git push)...")
         push_res = subprocess.run(["git", "push"], cwd=git_root, capture_output=True, text=True, timeout=30)
         
         if push_res.returncode == 0:
@@ -72,13 +52,27 @@ def auto_commit_and_push_on_shutdown():
             print(f"[M.A.R.C. Shutdown] ⚠️ Error en fer push:\n{push_res.stderr.strip()}")
 
     except Exception as e:
-        print(f"[M.A.R.C. Shutdown] ⚠️ No s'ha pogut completar l'auto-commit de tancament: {e}")
+        print(f"[M.A.R.C. Shutdown] ⚠️ No s'ha pogut completar l'auto-commit: {e}")
+
+# Manejador exclusiu de Ctrl+C per a la consola de Windows
+if sys.platform == "win32":
+    CTRL_C_EVENT = 0
+    CTRL_CLOSE_EVENT = 2
+
+    def console_handler(ctrl_type):
+        if ctrl_type in (CTRL_C_EVENT, CTRL_CLOSE_EVENT):
+            fer_auto_commit_git()
+            return False  # Permet que el procés de tancament continuï amb normalitat
+        return False
+
+    _handler_ref = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_uint)(console_handler)
+    ctypes.windll.kernel32.SetConsoleCtrlHandler(_handler_ref, True)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     yield
-    auto_commit_and_push_on_shutdown()
+    # Buit: ja no intercepta les recàrregues de fitxers (Ctrl + S)
 
 app = FastAPI(title="M.A.R.C. API", version="1.0", lifespan=lifespan)
 

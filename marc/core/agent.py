@@ -17,7 +17,8 @@ from marc.core.tools import (
     visitar_pagina_web,
     descarregar_recurs_internet,
     executar_script_o_comanda,
-    gestio_git
+    gestio_git,
+    inspeccionar_estructura_projecte
 )
 
 load_dotenv()
@@ -48,7 +49,8 @@ def get_agent_executor():
         visitar_pagina_web,
         descarregar_recurs_internet,
         executar_script_o_comanda,
-        gestio_git
+        gestio_git,
+        inspeccionar_estructura_projecte
     ]
     
     prompt = ChatPromptTemplate.from_messages([
