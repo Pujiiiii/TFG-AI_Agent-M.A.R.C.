@@ -2,79 +2,17 @@ import os
 import shutil
 import requests
 import groq
-import subprocess
-import sys
-import ctypes
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from datetime import datetime
-from contextlib import asynccontextmanager
-from marc.core.tools import obtenir_arrel_git
 from marc.core.agent import agent_amb_historial, store
 from marc.core.actions import executar_accio, consumir_ultima_accio
 from marc.core.workspace import get_workspace, set_workspace
 
-def fer_auto_commit_git():
-    """Detecta canvis sense desar i fa commit i push."""
-    git_root = obtenir_arrel_git()
-    print("\n[M.A.R.C. Shutdown] Verificant l'estat del repositori Git...")
-
-    try:
-        status_res = subprocess.run(
-            ["git", "status", "--porcelain"],
-            cwd=git_root,
-            capture_output=True,
-            text=True,
-            timeout=10
-        )
-        
-        canvis = status_res.stdout.strip()
-        if not canvis:
-            print("[M.A.R.C. Shutdown] Repositori al dia. No cal fer cap commit.")
-            return
-
-        ara = datetime.now().strftime("%d/%m/%Y %H:%M")
-        missatge = f"Canvis finals dia {ara}"
-        print(f"[M.A.R.C. Shutdown] Canvis detectats. Fent commit: '{missatge}'...")
-
-        subprocess.run(["git", "add", "-A"], cwd=git_root, check=True, timeout=15)
-        subprocess.run(["git", "commit", "-m", missatge], cwd=git_root, check=True, timeout=15)
-
-        print("[M.A.R.C. Shutdown] Pujant commits al remot (git push)...")
-        push_res = subprocess.run(["git", "push"], cwd=git_root, capture_output=True, text=True, timeout=30)
-        
-        if push_res.returncode == 0:
-            print("[M.A.R.C. Shutdown] ✓ Commit i push completats correctament!")
-        else:
-            print(f"[M.A.R.C. Shutdown] ⚠️ Error en fer push:\n{push_res.stderr.strip()}")
-
-    except Exception as e:
-        print(f"[M.A.R.C. Shutdown] ⚠️ No s'ha pogut completar l'auto-commit: {e}")
-
-# Manejador exclusiu de Ctrl+C per a la consola de Windows
-if sys.platform == "win32":
-    CTRL_C_EVENT = 0
-    CTRL_CLOSE_EVENT = 2
-
-    def console_handler(ctrl_type):
-        if ctrl_type in (CTRL_C_EVENT, CTRL_CLOSE_EVENT):
-            fer_auto_commit_git()
-            return False  # Permet que el procés de tancament continuï amb normalitat
-        return False
-
-    _handler_ref = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_uint)(console_handler)
-    ctypes.windll.kernel32.SetConsoleCtrlHandler(_handler_ref, True)
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    yield
-    # Buit: ja no intercepta les recàrregues de fitxers (Ctrl + S)
-
-app = FastAPI(title="M.A.R.C. API", version="1.0", lifespan=lifespan)
+# Inicialització neta de FastAPI
+app = FastAPI(title="M.A.R.C. API", version="1.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -134,7 +72,6 @@ def construir_arbre(ruta):
         if el in ignorar:
             continue
         ruta_completa = os.path.join(ruta_norm, el)
-        # Normalitzem sempre amb barres '/' per evitar problemes a la web
         path_net = os.path.normpath(ruta_completa).replace("\\", "/")
         
         try:
@@ -187,7 +124,6 @@ def xat(peticio: ChatRequest):
 @app.post("/api/confirm-action")
 async def confirm_action_endpoint(body: ConfirmRequest):
     try:
-        # Utilitzem el nom real de la funció del teu actions.py
         resultat = executar_accio(body.action_id, body.approved)
         return {
             "status": "approved" if body.approved else "rejected",
@@ -253,7 +189,6 @@ def moure_o_reanomenar(req: FileMoveRequest):
     old_p = os.path.normpath(req.old_path)
     new_p = os.path.normpath(req.new_path)
     
-    # Si s'arrossega cap a una carpeta existent, col·loquem el fitxer a dins
     if os.path.isdir(new_p):
         nom_fitxer = os.path.basename(old_p)
         new_p = os.path.join(new_p, nom_fitxer)
