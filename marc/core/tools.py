@@ -434,3 +434,68 @@ def buscar_arxiu_per_nom(patro: str) -> str:
         return f"No s'ha trobat cap fitxer o carpeta que coincideixi amb '{patro}'."
 
     return "Arxius trobats:\n- " + "\n- ".join(coincidencies[:30])
+
+def generar_arbre_text(directori_base: str, prefix: str = "", profunditat_actual: int = 1, max_depth: int = 3) -> str:
+    """Genera recursivament una representació tipus 'tree' en text pla."""
+    if profunditat_actual > max_depth:
+        return ""
+
+    ignorar = {".git", "__pycache__", "venv", "env", "node_modules", ".pytest_cache", ".idea", ".vscode"}
+    linies = []
+
+    try:
+        entrades = sorted(
+            [e for e in os.listdir(directori_base) if e.lower() not in ignorar],
+            key=lambda x: (not os.path.isdir(os.path.join(directori_base, x)), x.lower())
+        )
+    except PermissionError:
+        return f"{prefix}└── [Permís denegat]\n"
+    except Exception as e:
+        return f"{prefix}└── [Error: {str(e)}]\n"
+
+    total = len(entrades)
+    for index, nom in enumerate(entrades):
+        es_ultim = (index == total - 1)
+        conector = "└── " if es_ultim else "├── "
+        ruta_completa = os.path.join(directori_base, nom)
+        es_dir = os.path.isdir(ruta_completa)
+
+        linies.append(f"{prefix}{conector}{nom}{'/' if es_dir else ''}")
+
+        if es_dir and profunditat_actual < max_depth:
+            nou_prefix = prefix + ("    " if es_ultim else "│   ")
+            sub_arbre = generar_arbre_text(ruta_completa, nou_prefix, profunditat_actual + 1, max_depth)
+            if sub_arbre:
+                linies.append(sub_arbre.rstrip("\n"))
+
+    return "\n".join(linies)
+
+
+@tool
+def inspeccionar_estructura_projecte(directori: str = ".", profunditat: int = 3) -> str:
+    """
+    Mostra l'estructura jeràrquica en format arbre d'un directori del projecte.
+    Filtra automàticament carpetes auxiliars (.git, venv, node_modules, __pycache__).
+    
+    Paràmetres:
+      - directori: El directori a inspeccionar (per defecte '.' per l'arrel de treball).
+      - profunditat: Nivells de subcarpetes a recórrer (per defecte 3).
+    """
+    ws = get_workspace()
+    
+    # Resol la ruta indicada si és un nom curt o relativa
+    ruta_relativa = resoldre_ruta_fitxer(directori, ws)
+    ruta_objectiu = os.path.normpath(os.path.join(ws, ruta_relativa))
+
+    if not os.path.exists(ruta_objectiu):
+        return f"Error: El directori '{directori}' no existeix a l'espai de treball."
+    if not os.path.isdir(ruta_objectiu):
+        return f"Error: '{directori}' és un fitxer, no un directori."
+
+    nom_capçalera = os.path.basename(ruta_objectiu) or "."
+    arbre = generar_arbre_text(ruta_objectiu, profunditat_actual=1, max_depth=profunditat)
+
+    resultat = f"Estructura de '{nom_capçalera}' (profunditat màx: {profunditat}):\n"
+    resultat += f"{nom_capçalera}/\n"
+    resultat += arbre if arbre else "└── (directori buit)"
+    return resultat
