@@ -1,6 +1,7 @@
 import os
 import requests
 import difflib
+import sys
 import subprocess
 import fnmatch
 from typing import Optional
@@ -499,3 +500,63 @@ def inspeccionar_estructura_projecte(directori: str = ".", profunditat: int = 3)
     resultat += f"{nom_capçalera}/\n"
     resultat += arbre if arbre else "└── (directori buit)"
     return resultat
+
+@tool
+def executar_tests_pytest(ruta_tests: str = "", arguments_extra: str = "") -> str:
+    """
+    Executa tests utilitzant Pytest a l'espai de treball o al repositori.
+    Útil per validar canvis en el codi, verificar regressions o comprovar nous desenvolupaments.
+    
+    Paràmetres:
+      - ruta_tests: Fitxer, carpeta o test específic (ex: 'tests/', 'tests/test_core.py', 'test_main.py::test_read_root').
+      - arguments_extra: Paràmetres addicionals de pytest (ex: '-k nom_test', '-x', '-v').
+    """
+    git_root = obtenir_arrel_git()
+    ws = get_workspace()
+    
+    # Decidim l'arrel d'execució: si s'indica ruta, provem de resoldre-la
+    target = ruta_tests.strip().strip("'\"")
+    if target:
+        # Intentem resoldre primer respecte a workspace, i si no, respecte a git_root
+        ruta_resolta = resoldre_ruta_fitxer(target, ws)
+        target_path = os.path.join(ws, ruta_resolta)
+        if not os.path.exists(target_path):
+            ruta_resolta = resoldre_ruta_fitxer(target, git_root)
+            target_path = os.path.join(git_root, ruta_resolta)
+    else:
+        target_path = ""
+
+    cmd = [sys.executable, "-m", "pytest"]
+    if target_path:
+        cmd.append(target_path)
+    
+    if arguments_extra.strip():
+        cmd.extend(arguments_extra.strip().split())
+    else:
+        cmd.extend(["-v", "--tb=short"])
+
+    try:
+        proc = subprocess.run(
+            cmd,
+            cwd=git_root,
+            capture_output=True,
+            text=True,
+            timeout=60
+        )
+        sortida = proc.stdout.strip()
+        errors = proc.stderr.strip()
+
+        if proc.returncode == 0:
+            return f"✅ TOTS ELS TESTS HAN PASSAT CORRECTAMENT:\n\n{sortida}"
+        elif proc.returncode == 1:
+            return f"❌ ALGUNS TESTS HAN FALLAT:\n\n{sortida}"
+        elif proc.returncode == 5:
+            return f"ℹ️ No s'ha trobat cap test per executar a '{target or git_root}'."
+        else:
+            detall_error = errors if errors else sortida
+            return f"⚠️ Error executant pytest (codi {proc.returncode}):\n{detall_error}"
+
+    except subprocess.TimeoutExpired:
+        return "⚠️ Error: L'execució dels tests ha superat el temps límit de 60 segons."
+    except Exception as e:
+        return f"⚠️ Error inesperat executant pytest: {str(e)}"
