@@ -123,13 +123,21 @@ def xat(peticio: ChatRequest):
     return {"response": output_text, "pending_action": pending}
 
 @app.post("/api/confirm-action")
-def confirmar_accio(req: ConfirmRequest):
-    resultat = executar_accio(req.action_id, req.approved)
-    agent_amb_historial.invoke(
-        {"input": f"[SISTEMA INTERN]: Acció {req.action_id} {'aprovada' if req.approved else 'rebutjada'}. {resultat['message']}"},
-        config={"configurable": {"session_id": req.session_id}}
-    )
-    return resultat
+async def confirm_action_endpoint(body: ConfirmRequest):
+    try:
+        # Utilitzem el nom real de la funció del teu actions.py
+        resultat = executar_accio(body.action_id, body.approved)
+        return {
+            "status": "approved" if body.approved else "rejected",
+            "message": resultat.get("message", "Acció processada."),
+            "success": resultat.get("success", False)
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Error intern executant l'acció: {str(e)}",
+            "success": False
+        }
 
 # --- ENDPOINTS WORKSPACE & GESTIÓ DE FITXERS ---
 @app.get("/api/system-status")

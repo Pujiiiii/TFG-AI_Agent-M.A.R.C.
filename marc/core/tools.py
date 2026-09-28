@@ -2,10 +2,51 @@ import os
 import requests
 import difflib
 import subprocess
+import fnmatch
+from typing import Optional
 from bs4 import BeautifulSoup
 from langchain_core.tools import tool
 from marc.core.actions import registrar_accio
 from marc.core.workspace import get_workspace
+
+def obtenir_arrel_git(ruta_inicial: str = None) -> str:
+    """Troba el directori pare que conté la carpeta .git."""
+    if not ruta_inicial:
+        ruta_inicial = get_workspace()
+    
+    ruta_actual = os.path.abspath(ruta_inicial)
+    while True:
+        if os.path.exists(os.path.join(ruta_actual, ".git")):
+            return ruta_actual
+        pare = os.path.dirname(ruta_actual)
+        if pare == ruta_actual:
+            return os.path.abspath(get_workspace())
+        ruta_actual = pare
+
+def resoldre_ruta_fitxer(nom_o_ruta: str, ws: Optional[str] = None) -> str:
+    """Cerca recursivament el fitxer a l'arbre si la ruta directa no existeix."""
+    if ws is None:
+        ws = get_workspace()
+
+    nom_net = nom_o_ruta.strip().strip("'\"")
+    if not nom_net:
+        return nom_o_ruta
+
+    ruta_directa = os.path.join(ws, nom_net)
+    if os.path.exists(ruta_directa):
+        return nom_net
+
+    nom_objectiu = os.path.basename(nom_net).lower()
+    ignorar = {".git", "__pycache__", "venv", "env", "node_modules", ".pytest_cache"}
+
+    for arrel, directoris, fitxers in os.walk(ws):
+        directoris[:] = [d for d in directoris if d.lower() not in ignorar]
+        for f in fitxers:
+            if f.lower() == nom_objectiu:
+                ruta_completa = os.path.join(arrel, f)
+                return os.path.relpath(ruta_completa, ws).replace("\\", "/")
+
+    return nom_net
 
 @tool
 def llistar_arxius(directori: str = None) -> str:
@@ -23,18 +64,18 @@ def llistar_arxius(directori: str = None) -> str:
 
 @tool
 def llegir_arxiu(ruta: str) -> str:
-    """
-    Llegeix el contingut d'un arxiu. 
-    Sempre has d'utilitzar aquesta eina per entendre el codi font o el context d'un arxiu abans de proposar-ne modificacions.
-    """
+    """Llegeix el contingut d'un arxiu de text. Si no es proporciona la ruta completa, es busca automàticament."""
+    ws = get_workspace()
+    ruta_real = resoldre_ruta_fitxer(ruta, ws)
+    ruta_completa = os.path.join(ws, ruta_real)
+
+    if not os.path.exists(ruta_completa):
+        return f"Error: L'arxiu '{ruta}' no existeix a l'espai de treball."
     try:
-        with open(ruta, 'r', encoding='utf-8') as f:
-            contingut = f.read()
-            if not contingut.strip():
-                return f"L'arxiu {ruta} existeix però està buit."
-            return contingut
+        with open(ruta_completa, "r", encoding="utf-8") as f:
+            return f.read()
     except Exception as e:
-        return f"Error en llegir l'arxiu: {e}"
+        return f"Error en llegir l'arxiu: {str(e)}"
 
 @tool
 def crear_carpeta(ruta: str) -> str:
@@ -135,56 +176,39 @@ def buscar_text_en_projecte(paraula_clau: str, directori_base: str = ".") -> str
     return "\n".join(resultats[:20])
 
 @tool
-def editar_arxiu_amb_diff(ruta: str, text_a_substituir: str, text_nou: str) -> str:
-    """
-    Proposa un canvi quirúrgic a un fitxer mostrant un diff per a aprovació de l'usuari a la web.
-    """
-    try:
-        with open(ruta, "r", encoding="utf-8") as f:
-            contingut_actual = f.read()
+def editar_arxiu_amb_diff(ruta: str, contingut_nou: str) -> str:
+    """Proposa canvis a un arxiu mitjançant una revisió diff abans d'escriure a disc. Resol la ruta si només es dóna el nom."""
+    ws = get_workspace()
+    ruta_real = resoldre_ruta_fitxer(ruta, ws)
+    ruta_completa = os.path.join(ws, ruta_real)
 
-        if text_a_substituir not in contingut_actual:
-            return f"Error: No s'ha trobat el text exacte a substituir dins de {ruta}."
+    contingut_antic = ""
+    if os.path.exists(ruta_completa):
+        try:
+            with open(ruta_completa, "r", encoding="utf-8") as f:
+                contingut_antic = f.read()
+        except Exception as e:
+            return f"Error en llegir l'arxiu original: {str(e)}"
 
-        contingut_modificat = contingut_actual.replace(text_a_substituir, text_nou)
+    def executar_edicio(*args, **kwargs):
+        os.makedirs(os.path.dirname(ruta_completa), exist_ok=True)
+        with open(ruta_completa, "w", encoding="utf-8") as f:
+            f.write(contingut_nou)
+        return f"Fitxer '{ruta_real}' desat correctament."
 
-        diff = list(difflib.unified_diff(
-            contingut_actual.splitlines(keepends=True),
-            contingut_modificat.splitlines(keepends=True),
-            fromfile=f"a/{ruta}",
-            tofile=f"b/{ruta}"
-        ))
-        diff_text = "".join(diff)
-
-        def aplicar_edicio(data):
-            # Admet un fitxer o llista de fitxers
-            fitxers = data.get("files", [data])
-            resums = []
-            for f_info in fitxers:
-                with open(f_info["ruta"], "w", encoding="utf-8") as f:
-                    f.write(f_info["contingut_nou"])
-                resums.append(f_info["ruta"])
-            return f"Canvis aplicats amb èxit a: {', '.join(resums)}"
-
-        # Preparem l'estructura multifitxer
-        files_data = [{
-            "ruta": ruta,
-            "contingut_antic": contingut_actual,
-            "contingut_nou": contingut_modificat,
-            "diff": diff_text
-        }]
-
-        accio = registrar_accio(
-            tipus="diff",
-            resum=f"Modificació a {ruta}",
-            dades={"files": files_data},
-            funcio_execucio=aplicar_edicio
-        )
-
-        return f"S'ha generat una proposta de modificació per a {ruta}. Revisa la finestra emergent a la interfície per inspeccionar el codi."
-
-    except Exception as e:
-        return f"Error en preparar l'edició: {e}"
+    aid = registrar_accio(
+        tipus="file_diff",
+        resum=f"Modificació del fitxer: {ruta_real}",
+        dades={
+            "files": [{
+                "ruta": ruta_real,
+                "contingut_antic": contingut_antic,
+                "contingut_nou": contingut_nou
+            }]
+        },
+        funcio_execucio=executar_edicio
+    )
+    return f"[ACCIÓ PENDENT - ID: {aid}] S'ha proposat una edició per a '{ruta_real}'. L'usuari l'ha de revisar i confirmar."
 
 @tool
 def visitar_pagina_web(url: str) -> str:
@@ -267,25 +291,27 @@ def executar_script_o_comanda(comanda: str) -> str:
 @tool
 def gestio_git(comanda: str, parametres: str = "") -> str:
     """
-    Gestiona el repositori Git a l'espai de treball actual.
+    Gestiona el repositori Git del projecte.
     
-    Comandes de lectura immediata (sense confirmació):
-      - 'status': Mostra l'estat dels fitxers modificats/sense seguiment.
-      - 'log': Mostra els últims commits (parametres: nombre de commits, ex: '5').
-      - 'diff': Mostra les diferències no confirmades.
-      - 'branch': Llista les branques existents.
+    Comandes de lectura:
+      - 'status': Estat dels fitxers.
+      - 'log': Historial de commits.
+      - 'diff': Diferències pendents.
+      - 'branch': Llista branques.
       
-    Comandes d'escriptura (requereixen confirmació de l'usuari):
-      - 'commit': Crea un nou commit (parametres: missatge del commit, SENSE posar -m).
-      - 'add': Afegeix fitxers a l'staging (parametres: rutes o '.' per tot).
-      - 'reset': Treu fitxers de l'staging (parametres: noms dels fitxers a treure).
-      - 'checkout': Canvia o crea una branca (parametres: nom de la branca).
+    Comandes d'escriptura (requereixen confirmació):
+      - 'add': Afegeix fitxers a staging (resol automàticament noms aïllats).
+      - 'commit': Fa el commit (parametres: missatge, SENSE -m).
+      - 'push': Puja al remot.
+      - 'commit_and_push': Fa commit i push de cop.
+      - 'reset': Treu fitxers de staging.
+      - 'checkout': Canvia de branca.
     """
-    ws = get_workspace()
+    git_root = obtenir_arrel_git()
     comanda = comanda.strip().lower()
     parametres = parametres.strip()
 
-    # Comandes només de lectura
+    # Comandes de lectura immediata
     if comanda in ["status", "log", "diff", "branch"]:
         cmd = ["git"]
         if comanda == "status":
@@ -301,68 +327,110 @@ def gestio_git(comanda: str, parametres: str = "") -> str:
             cmd += ["branch", "-a"]
 
         try:
-            res = subprocess.run(cmd, cwd=ws, capture_output=True, text=True, timeout=10)
+            res = subprocess.run(cmd, cwd=git_root, capture_output=True, text=True, timeout=10)
             if res.returncode != 0:
-                if "not a git repository" in res.stderr.lower():
-                    return f"L'espai de treball '{ws}' no és un repositori Git."
                 return f"Error executant 'git {comanda}': {res.stderr.strip()}"
-            
-            output = res.stdout.strip()
-            return output if output else f"La comanda 'git {comanda}' s'ha completat sense sortida de text."
+            return res.stdout.strip() or f"La comanda 'git {comanda}' s'ha completat sense canvis."
         except Exception as e:
             return f"Error en executar git: {str(e)}"
 
     # Comandes d'escriptura (Human-in-the-Loop)
-    elif comanda in ["commit", "checkout", "add", "reset"]:
+    elif comanda in ["commit", "push", "commit_and_push", "checkout", "add", "reset"]:
         if comanda == "commit":
             if not parametres:
-                return "Error: Has d'indicar un missatge per al commit als paràmetres."
-            
-            msg_net = parametres
-            if msg_net.startswith("-m "):
-                msg_net = msg_net[3:].strip()
-            msg_net = msg_net.strip("'\"")
-
+                return "Error: Has d'indicar un missatge per al commit."
+            msg_net = parametres.removeprefix("-m ").strip("'\"")
             comanda_shell = f'git commit -m "{msg_net}"'
-            resum = f"Fer commit a Git: '{msg_net}'"
+            resum = f"Fer commit: '{msg_net}'"
+
+        elif comanda == "push":
+            target = f" {parametres}" if parametres else ""
+            comanda_shell = f"git push{target}"
+            resum = f"Pujar al remot: git push{target}"
+
+        elif comanda == "commit_and_push":
+            if not parametres:
+                return "Error: Has d'indicar un missatge per al commit."
+            msg_net = parametres.removeprefix("-m ").strip("'\"")
+            comanda_shell = f'git commit -m "{msg_net}" && git push'
+            resum = f"Fer commit i pujar al remot: '{msg_net}'"
 
         elif comanda == "checkout":
-            if not parametres:
-                return "Error: Has d'indicar la branca de destí."
             comanda_shell = f"git checkout {parametres}"
-            resum = f"Canviar/crear branca de Git: {parametres}"
+            resum = f"Canviar branca: {parametres}"
 
         elif comanda == "add":
             target = parametres if parametres else "."
+            if target != ".":
+                parts = [p.strip().strip("'\"") for p in target.split() if p.strip()]
+                # Resolem cada fitxer respecte a l'arrel real de Git
+                targets_resolts = [resoldre_ruta_fitxer(p, git_root) for p in parts]
+                target = " ".join(targets_resolts)
             comanda_shell = f"git add {target}"
-            resum = f"Afegir fitxers a l'staging de Git: {target}"
+            resum = f"Afegir fitxers a staging: {target}"
 
         elif comanda == "reset":
             target = parametres if parametres else "."
+            if target != ".":
+                parts = [p.strip().strip("'\"") for p in target.split() if p.strip()]
+                targets_resolts = [resoldre_ruta_fitxer(p, git_root) for p in parts]
+                target = " ".join(targets_resolts)
             comanda_shell = f"git reset {target}"
-            resum = f"Treure fitxers de l'staging de Git: {target}"
+            resum = f"Treure fitxers de staging: {target}"
 
         def executar_ordre_git(*args, **kwargs):
             exec_res = subprocess.run(
                 comanda_shell,
                 shell=True,
-                cwd=ws,
+                cwd=git_root,
                 capture_output=True,
                 text=True,
-                timeout=30
+                timeout=45
             )
             if exec_res.returncode != 0:
                 detall = exec_res.stderr.strip() or exec_res.stdout.strip()
                 raise RuntimeError(detall or f"Error executant: {comanda_shell}")
-            return exec_res.stdout.strip() or f"Ordre '{comanda_shell}' executada correctament."
+            return exec_res.stdout.strip() or f"Ordre executada correctament: {comanda_shell}"
 
         aid = registrar_accio(
             tipus="exec",
             resum=resum,
-            dades={"comanda": f"cd {ws} && {comanda_shell}"},
+            dades={"comanda": comanda_shell},
             funcio_execucio=executar_ordre_git
         )
-        return f"[ACCIÓ PENDENT - ID: {aid}] S'ha sol·licitat l'execució de '{comanda_shell}'. L'usuari l'ha de confirmar des de la interfície."
+        return f"[ACCIÓ PENDENT - ID: {aid}] S'ha sol·licitat l'execució de '{comanda_shell}'. Confirma des de la interfície."
 
-    else:
-        return f"Comanda Git '{comanda}' no reconeguda. Opcions vàlides: status, log, diff, branch, add, reset, commit, checkout."
+    return f"Comanda Git '{comanda}' no reconeguda."
+
+@tool
+def buscar_arxiu_per_nom(patro: str) -> str:
+    """
+    Cerca fitxers o carpetes pel seu nom o patró dins de l'espai de treball (ex: 'agent.py', 'tools.py', '*.json').
+    Útil per localitzar la ruta exacta d'un arxiu abans de llegir-lo, editar-lo o fer-ne commit.
+    """
+    ws = get_workspace()
+    ignorar = {".git", "__pycache__", "venv", "env", "node_modules", ".pytest_cache"}
+    coincidencies = []
+
+    patro_net = patro.strip().strip("'\"").lower()
+    te_wildcard = any(c in patro_net for c in ["*", "?", "["])
+
+    for arrel, directoris, fitxers in os.walk(ws):
+        directoris[:] = [d for d in directoris if d.lower() not in ignorar]
+        
+        # Comprovem tant fitxers com carpetes
+        for nom in fitxers:
+            nom_low = nom.lower()
+            if te_wildcard:
+                match = fnmatch.fnmatch(nom_low, patro_net)
+            else:
+                match = (nom_low == patro_net) or (patro_net in nom_low)
+            
+            if match:
+                ruta_rel = os.path.relpath(os.path.join(arrel, nom), ws).replace("\\", "/")
+                coincidencies.append(ruta_rel)
+
+    if not coincidencies:
+        return f"No s'ha trobat cap fitxer o carpeta que coincideixi amb '{patro}'."
+
+    return "Arxius trobats:\n- " + "\n- ".join(coincidencies[:30])

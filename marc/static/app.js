@@ -479,6 +479,10 @@ async function respondreAccio(aprovat) {
   modalApproveBtn.disabled = true;
   modalRejectBtn.disabled = true;
 
+  // Tanquem la finestra modal immediatament per retornar el focus al xat
+  diffModal.classList.add("hidden");
+  const loadingMsg = appendMessage("M.A.R.C.", aprovat ? "Executant acció i recopilant resposta..." : "Cancel·lant acció...");
+
   try {
     const res = await fetch("/api/confirm-action", {
       method: "POST",
@@ -490,11 +494,33 @@ async function respondreAccio(aprovat) {
       })
     });
     const result = await res.json();
-    diffModal.classList.add("hidden");
-    appendMessage("M.A.R.C.", `${aprovat ? "🟢 **Aprovat:**" : "🔴 **Rebutjat:**"} ${result.message}`);
+
+    // Eliminem l'indicador de càrrega
+    if (loadingMsg && loadingMsg.parentElement) {
+      chatMessages.removeChild(loadingMsg.parentElement);
+    }
+
+    // 1. Mostrem l'estat d'aprovació o rebuig del sistema
+    const detallMsg = result.message || (aprovat ? "Ordre executada." : "Acció cancel·lada.");
+    appendMessage("M.A.R.C.", `${aprovat ? "🟢 **Aprovat:**" : "🔴 **Rebutjat:**"} ${detallMsg}`);
+
+    // 2. Si l'agent ha generat una conclusió posterior a la consola, la pintem al xat
+    const explicacioAgent = result.agent_response || result.response;
+    if (explicacioAgent && explicacioAgent.trim()) {
+      appendMessage("M.A.R.C.", explicacioAgent);
+    }
+
+    // 3. Si l'aprovació ha desencadenat una nova acció encadenada (ex: add -> commit)
+    if (result.pending_action) {
+      obrirModalDiff(result.pending_action);
+    }
+
     fetchSystemStatus();
   } catch (err) {
-    alert("Error enviant la decisió: " + err.message);
+    if (loadingMsg && loadingMsg.parentElement) {
+      chatMessages.removeChild(loadingMsg.parentElement);
+    }
+    appendMessage("M.A.R.C.", `⚠️ **Error en processar la confirmació:** ${err.message}`);
   } finally {
     modalApproveBtn.disabled = false;
     modalRejectBtn.disabled = false;
