@@ -5,17 +5,19 @@ import subprocess
 from bs4 import BeautifulSoup
 from langchain_core.tools import tool
 from marc.core.actions import registrar_accio
+from marc.core.workspace import get_workspace
 
 @tool
-def llistar_arxius(directori: str = "marc_test_dropzone") -> str:
+def llistar_arxius(directori: str = None) -> str:
     """
-    Llista els arxius i carpetes d'un directori específic. 
+    Llista els arxius i carpetes del directori especificat o de l'espai de treball actual si no s'indica cap ruta.
     """
+    target = directori if directori and directori.strip() else get_workspace()
     try:
-        arxius = os.listdir(directori)
+        arxius = os.listdir(target)
         if not arxius:
-            return "El directori està buit."
-        return f"Arxius trobats al directori '{directori}': {', '.join(arxius)}"
+            return f"El directori '{target}' està buit."
+        return f"Arxius trobats a '{target}': {', '.join(arxius)}"
     except Exception as e:
         return f"Error en llegir el directori: {e}"
 
@@ -261,3 +263,102 @@ def executar_script_o_comanda(comanda: str) -> str:
         funcio_execucio=aplicar_execucio
     )
     return f"S'ha preparat l'execució de la comanda: `{comanda}` (ID acció: {accio['action_id']}). Esperant aprovació."
+
+@tool
+def gestio_git(comanda: str, parametres: str = "") -> str:
+    """
+    Gestiona el repositori Git a l'espai de treball actual.
+    
+    Comandes de lectura immediata (no requereixen aprovació):
+      - 'status': Mostra l'estat dels fitxers modificats/sense seguiment.
+      - 'log': Mostra els últims commits (parametres: nombre de commits, per defecte 5).
+      - 'diff': Mostra les diferències no confirmades.
+      - 'branch': Llista les branques existents.
+      
+    Comandes d'escriptura (requereixen confirmació de l'usuari):
+      - 'commit': Crea un nou commit (parametres: missatge del commit, NO incloure -m).
+      - 'checkout': Canvia o crea una branca (parametres: nom de la branca o '-b nom_branca').
+      - 'add': Afegeix fitxers a staging (parametres: rutes o '.' per tot).
+    """
+    ws = get_workspace()
+    comanda = comanda.strip().lower()
+    parametres = parametres.strip()
+
+    # Comandes només de lectura
+    if comanda in ["status", "log", "diff", "branch"]:
+        cmd = ["git"]
+        if comanda == "status":
+            cmd += ["status", "-s"]
+        elif comanda == "log":
+            n = parametres if parametres.isdigit() else "5"
+            cmd += ["log", f"-n{n}", "--oneline", "--decorate"]
+        elif comanda == "diff":
+            cmd += ["diff"]
+            if parametres:
+                cmd.extend(parametres.split())
+        elif comanda == "branch":
+            cmd += ["branch", "-a"]
+
+        try:
+            res = subprocess.run(cmd, cwd=ws, capture_output=True, text=True, timeout=10)
+            if res.returncode != 0:
+                if "not a git repository" in res.stderr.lower():
+                    return f"L'espai de treball '{ws}' no és un repositori Git."
+                return f"Error executant 'git {comanda}': {res.stderr.strip()}"
+            
+            output = res.stdout.strip()
+            return output if output else f"La comanda 'git {comanda}' no ha retornat cap resultat."
+        except Exception as e:
+            return f"Error en executar git: {str(e)}"
+
+    # Comandes d'escriptura (Human-in-the-Loop)
+    elif comanda in ["commit", "checkout", "add"]:
+        if comanda == "commit":
+            if not parametres:
+                return "Error: Has d'indicar un missatge per al commit als paràmetres."
+            
+            # Neteja si l'LLM ha inclòs manualment -m o cometes residuals
+            msg_net = parametres
+            if msg_net.startswith("-m "):
+                msg_net = msg_net[3:].strip()
+            msg_net = msg_net.strip("'\"")
+
+            comanda_shell = f'git commit -m "{msg_net}"'
+            resum = f"Fer commit a Git: '{msg_net}'"
+
+        elif comanda == "checkout":
+            if not parametres:
+                return "Error: Has d'indicar la branca de destí."
+            comanda_shell = f"git checkout {parametres}"
+            resum = f"Canviar/crear branca de Git: {parametres}"
+
+        elif comanda == "add":
+            target = parametres if parametres else "."
+            comanda_shell = f"git add {target}"
+            resum = f"Afegir fitxers a l'staging de Git: {target}"
+
+        # Callback flexible que accepta els arguments que li passi actions.py
+        def executar_ordre_git(*args, **kwargs):
+            exec_res = subprocess.run(
+                comanda_shell,
+                shell=True,
+                cwd=ws,
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            if exec_res.returncode != 0:
+                detall = exec_res.stderr.strip() or exec_res.stdout.strip()
+                raise RuntimeError(detall or f"Error executant: {comanda_shell}")
+            return exec_res.stdout.strip() or f"Ordre '{comanda_shell}' executada correctament."
+
+        aid = registrar_accio(
+            tipus="exec",
+            resum=resum,
+            dades={"comanda": f"cd {ws} && {comanda_shell}"},
+            funcio_execucio=executar_ordre_git
+        )
+        return f"[ACCIÓ PENDENT - ID: {aid}] S'ha sol·licitat l'execució de '{comanda_shell}'. L'usuari l'ha de confirmar des de la interfície."
+
+    else:
+        return f"Comanda Git '{comanda}' no reconeguda. Opcions vàlides: status, log, diff, branch, add, commit, checkout."

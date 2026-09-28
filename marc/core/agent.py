@@ -15,7 +15,8 @@ from marc.core.tools import (
     editar_arxiu_amb_diff,
     visitar_pagina_web,
     descarregar_recurs_internet,
-    executar_script_o_comanda
+    executar_script_o_comanda,
+    gestio_git
 )
 
 load_dotenv()
@@ -30,7 +31,7 @@ def get_session_history(session_id: str):
 
 def get_agent_executor():
     llm = ChatGroq(
-        model="llama-3.3-70b-versatile",
+        model="openai/gpt-oss-20b",
         temperature=0.2
     )
     
@@ -44,11 +45,16 @@ def get_agent_executor():
         editar_arxiu_amb_diff,
         visitar_pagina_web,
         descarregar_recurs_internet,
-        executar_script_o_comanda
+        executar_script_o_comanda,
+        gestio_git
     ]
     
     prompt = ChatPromptTemplate.from_messages([
-        ("system", "Ets en M.A.R.C. (Mòdul d'Assistència i Resposta Computacional), un assistent personal autònom. Només pots fer servir les eines que tens definides i cap mes. També disposes d'anàlisi global i edició quirúrgica amb diff. Si fas un canvi, explica breument què has fet."),
+        ("system", 
+         "Ets en M.A.R.C. (Mòdul d'Assistència i Resposta Computacional), un enginyer de programari i assistent personal autònom. "
+         "Només pots fer servir les eines definides. "
+         "SEMPRE has de respondre a l'usuari amb un missatge en llenguatge natural explicant el resultat, fins i tot si una eina ha donat un error o no ha trobat dades. "
+         "Mai finalitzis la resposta en blanc."),
         ("placeholder", "{chat_history}"),
         ("human", "{input}"),
         ("placeholder", "{agent_scratchpad}")
