@@ -269,16 +269,17 @@ def gestio_git(comanda: str, parametres: str = "") -> str:
     """
     Gestiona el repositori Git a l'espai de treball actual.
     
-    Comandes de lectura immediata (no requereixen aprovació):
+    Comandes de lectura immediata (sense confirmació):
       - 'status': Mostra l'estat dels fitxers modificats/sense seguiment.
-      - 'log': Mostra els últims commits (parametres: nombre de commits, per defecte 5).
+      - 'log': Mostra els últims commits (parametres: nombre de commits, ex: '5').
       - 'diff': Mostra les diferències no confirmades.
       - 'branch': Llista les branques existents.
       
     Comandes d'escriptura (requereixen confirmació de l'usuari):
-      - 'commit': Crea un nou commit (parametres: missatge del commit, NO incloure -m).
-      - 'checkout': Canvia o crea una branca (parametres: nom de la branca o '-b nom_branca').
-      - 'add': Afegeix fitxers a staging (parametres: rutes o '.' per tot).
+      - 'commit': Crea un nou commit (parametres: missatge del commit, SENSE posar -m).
+      - 'add': Afegeix fitxers a l'staging (parametres: rutes o '.' per tot).
+      - 'reset': Treu fitxers de l'staging (parametres: noms dels fitxers a treure).
+      - 'checkout': Canvia o crea una branca (parametres: nom de la branca).
     """
     ws = get_workspace()
     comanda = comanda.strip().lower()
@@ -307,17 +308,16 @@ def gestio_git(comanda: str, parametres: str = "") -> str:
                 return f"Error executant 'git {comanda}': {res.stderr.strip()}"
             
             output = res.stdout.strip()
-            return output if output else f"La comanda 'git {comanda}' no ha retornat cap resultat."
+            return output if output else f"La comanda 'git {comanda}' s'ha completat sense sortida de text."
         except Exception as e:
             return f"Error en executar git: {str(e)}"
 
     # Comandes d'escriptura (Human-in-the-Loop)
-    elif comanda in ["commit", "checkout", "add"]:
+    elif comanda in ["commit", "checkout", "add", "reset"]:
         if comanda == "commit":
             if not parametres:
                 return "Error: Has d'indicar un missatge per al commit als paràmetres."
             
-            # Neteja si l'LLM ha inclòs manualment -m o cometes residuals
             msg_net = parametres
             if msg_net.startswith("-m "):
                 msg_net = msg_net[3:].strip()
@@ -337,7 +337,11 @@ def gestio_git(comanda: str, parametres: str = "") -> str:
             comanda_shell = f"git add {target}"
             resum = f"Afegir fitxers a l'staging de Git: {target}"
 
-        # Callback flexible que accepta els arguments que li passi actions.py
+        elif comanda == "reset":
+            target = parametres if parametres else "."
+            comanda_shell = f"git reset {target}"
+            resum = f"Treure fitxers de l'staging de Git: {target}"
+
         def executar_ordre_git(*args, **kwargs):
             exec_res = subprocess.run(
                 comanda_shell,
@@ -361,4 +365,4 @@ def gestio_git(comanda: str, parametres: str = "") -> str:
         return f"[ACCIÓ PENDENT - ID: {aid}] S'ha sol·licitat l'execució de '{comanda_shell}'. L'usuari l'ha de confirmar des de la interfície."
 
     else:
-        return f"Comanda Git '{comanda}' no reconeguda. Opcions vàlides: status, log, diff, branch, add, commit, checkout."
+        return f"Comanda Git '{comanda}' no reconeguda. Opcions vàlides: status, log, diff, branch, add, reset, commit, checkout."
