@@ -2,17 +2,72 @@ import os
 import shutil
 import requests
 import groq
+import subprocess
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-
+from datetime import datetime
+from contextlib import asynccontextmanager
+from marc.core.tools import obtenir_arrel_git
 from marc.core.agent import agent_amb_historial, store
 from marc.core.actions import executar_accio, consumir_ultima_accio
 from marc.core.workspace import get_workspace, set_workspace
 
-app = FastAPI(title="M.A.R.C. API", version="1.0")
+
+def auto_commit_and_push_on_shutdown():
+    """Detecta canvis sense desar i fa commit i push en tancar el servidor."""
+    git_root = obtenir_arrel_git()
+    print("\n[M.A.R.C. Shutdown] Verificant l'estat del repositori Git...")
+
+    try:
+        # 1. Comprovar si hi ha canvis pendents
+        status_res = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=git_root,
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        
+        canvis = status_res.stdout.strip()
+        if not canvis:
+            print("[M.A.R.C. Shutdown] Repositori al dia. No cal fer cap commit.")
+            return
+
+        # 2. Generar el missatge amb la data i hora actuals
+        ara = datetime.now().strftime("%d/%m/%Y %H:%M")
+        missatge = f"Canvis finals dia {ara}"
+        print(f"[M.A.R.C. Shutdown] Canvis detectats. Fent commit: '{missatge}'...")
+
+        # 3. Fer git add de tots els fitxers
+        subprocess.run(["git", "add", "-A"], cwd=git_root, check=True, timeout=15)
+
+        # 4. Fer el commit
+        subprocess.run(["git", "commit", "-m", missatge], cwd=git_root, check=True, timeout=15)
+
+        # 5. Fer push al remot
+        print("[M.A.R.C. Shutdown] Pujant commits al repositori remot (git push)...")
+        push_res = subprocess.run(["git", "push"], cwd=git_root, capture_output=True, text=True, timeout=30)
+        
+        if push_res.returncode == 0:
+            print("[M.A.R.C. Shutdown] ✓ Commit i push completats correctament!")
+        else:
+            print(f"[M.A.R.C. Shutdown] ⚠️ Error en fer push:\n{push_res.stderr.strip()}")
+
+    except Exception as e:
+        print(f"[M.A.R.C. Shutdown] ⚠️ No s'ha pogut completar l'auto-commit de tancament: {e}")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Codi a executar a l'inici del servidor (opcional)
+    yield
+    # Codi a executar quan es prem Ctrl + C abans d'apagar el procés
+    auto_commit_and_push_on_shutdown()
+
+app = FastAPI(title="M.A.R.C. API", version="1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
