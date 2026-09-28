@@ -3,7 +3,7 @@ import sys
 from datetime import datetime
 
 def fer_auto_commit_final():
-    print("\n[M.A.R.C. Shutdown] Servidor aturat manualment (Ctrl + C). Verificant Git...")
+    print("\n[M.A.R.C. Shutdown] Aturada de servidor detectada (Ctrl + C). Verificant Git...")
     try:
         status_res = subprocess.run(
             ["git", "status", "--porcelain"],
@@ -18,7 +18,7 @@ def fer_auto_commit_final():
 
         ara = datetime.now().strftime("%d/%m/%Y %H:%M")
         missatge = f"Canvis finals dia {ara}"
-        print(f"[M.A.R.C. Shutdown] Fent commit: '{missatge}'...")
+        print(f"[M.A.R.C. Shutdown] Canvis detectats. Fent commit: '{missatge}'...")
 
         subprocess.run(["git", "add", "-A"], check=True, timeout=15)
         subprocess.run(["git", "commit", "-m", missatge], check=True, timeout=15)
@@ -43,10 +43,8 @@ if __name__ == "__main__":
         "--port", "8000"
     ]
     try:
-        # Executa el servidor Uvicorn
         subprocess.run(comanda)
     except KeyboardInterrupt:
         pass
     finally:
-        # S'executa ÚNICAMENT quan la sessió de terminal finalitza definitivament
         fer_auto_commit_final()
