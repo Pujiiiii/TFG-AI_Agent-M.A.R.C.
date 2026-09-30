@@ -1,7 +1,7 @@
 # marc/core/workspace.py
 import os
 
-WORKSPACE_ROOT = "marc_test_dropzone"
+WORKSPACE_ROOT = "."
 
 def get_workspace() -> str:
     global WORKSPACE_ROOT
