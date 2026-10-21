@@ -10,9 +10,13 @@ const currentSessionLabel = document.getElementById("current-session-label");
 // BADGES D'ESTAT DE SERVEIS
 const statusBackend = document.getElementById("status-backend");
 const statusDb = document.getElementById("status-db");
-const statusSearxng = document.getElementById("status-searxng");
+const statusNetwork = document.getElementById("status-network");
+const statusCalendar = document.getElementById("status-calendar");
 const statusEmail = document.getElementById("status-email");
+const statusSpotify = document.getElementById("status-spotify");
+const statusSearxng = document.getElementById("status-searxng");
 const statusTelegram = document.getElementById("status-telegram");
+const btnSyncNow = document.getElementById("btn-sync-now");
 
 // ELEMENTS DEL WIDGET D'AGENDA I TASQUES
 const tabBtnTasks = document.getElementById("tab-btn-tasks");
@@ -25,6 +29,7 @@ const taskCount = document.getElementById("task-count");
 const agendaCount = document.getElementById("agenda-count");
 const agendaDateLabel = document.getElementById("agenda-date-label");
 const btnAddTaskUi = document.getElementById("btn-add-task-ui");
+const btnAddEventUi = document.getElementById("btn-add-event-ui");
 
 // MODAL DE NOVA TASCA
 const newTaskModal = document.getElementById("new-task-modal");
@@ -35,6 +40,17 @@ const taskTitleInput = document.getElementById("task-title-input");
 const taskPrioInput = document.getElementById("task-prio-input");
 const taskDateInput = document.getElementById("task-date-input");
 const taskDescInput = document.getElementById("task-desc-input");
+
+// MODAL DE NOVA CITA D'AGENDA
+const newEventModal = document.getElementById("new-event-modal");
+const newEventForm = document.getElementById("new-event-form");
+const eventModalCloseBtn = document.getElementById("event-modal-close-btn");
+const eventCancelBtn = document.getElementById("event-cancel-btn");
+const eventTitleInput = document.getElementById("event-title-input");
+const eventDateInput = document.getElementById("event-date-input");
+const eventTimeInput = document.getElementById("event-time-input");
+const eventDurationInput = document.getElementById("event-duration-input");
+const eventLocInput = document.getElementById("event-loc-input");
 
 // ELEMENTS MODAL ACCIONS (HITL)
 const actionModal = document.getElementById("diff-modal");
@@ -82,11 +98,17 @@ async function fetchSystemStatus() {
     if (data.services) {
       if (statusBackend) statusBackend.textContent = data.services.backend || "ONLINE";
       if (statusDb) statusDb.textContent = data.services.database || "ONLINE";
+      if (statusNetwork) {
+        statusNetwork.textContent = data.services.internet || "ONLINE";
+        statusNetwork.className = `badge ${data.services.internet === "OFFLINE" ? "offline" : ""}`;
+      }
+      if (statusCalendar) statusCalendar.textContent = data.services.calendar || "LOCAL_DB";
+      if (statusEmail) statusEmail.textContent = data.services.email_hub || "LOCAL_HUB";
+      if (statusSpotify) statusSpotify.textContent = data.services.spotify || "NATIVE_APP";
       if (statusSearxng) {
         statusSearxng.textContent = data.services.searxng;
         statusSearxng.className = `badge ${data.services.searxng === "OFFLINE" ? "offline" : ""}`;
       }
-      if (statusEmail) statusEmail.textContent = data.services.email_hub || "LOCAL_HUB";
       if (statusTelegram) {
         statusTelegram.textContent = data.services.telegram;
         statusTelegram.className = `badge ${data.services.telegram === "STANDBY" ? "standby" : ""}`;
@@ -109,7 +131,7 @@ async function fetchSystemStatus() {
   }
 }
 
-// CONSULTAR I PINTAR DASHBOARD (TASQUES I AGENDA)
+// CONSULTAR I PINTAR DASHBOARD (TASQUES I TOTES LES CITES DE L'AGENDA)
 async function fetchDashboard() {
   try {
     const res = await fetch("/api/dashboard");
@@ -152,26 +174,50 @@ async function fetchDashboard() {
       });
     }
 
-    // 2. RENDERITZAR AGENDA
+    // 2. RENDERITZAR AGENDA (AMB SUPORT PER A TOTES LES CITES PROPERES)
     const events = data.events || [];
     agendaCount.textContent = events.length;
-    if (data.today_date) {
-      agendaDateLabel.textContent = `Reunions d'avui (${data.today_date})`;
-    }
+    agendaDateLabel.textContent = `Pròximes Cites (${events.length})`;
 
     if (events.length === 0) {
-      agendaList.innerHTML = `<div class="empty-state">Sense reunions per avui. Jornada lliure!</div>`;
+      agendaList.innerHTML = `<div class="empty-state">Sense cites a l'agenda. Clica a '+ Cita' per afegir-ne!</div>`;
     } else {
       agendaList.innerHTML = "";
+
+      // Obtenim dates de referència per a mostrar 'Avui', 'Demà', etc.
+      const ara = new Date();
+      const avuiStr = ara.toISOString().split("T")[0];
+      const dema = new Date();
+      dema.setDate(dema.getDate() + 1);
+      const demaStr = dema.toISOString().split("T")[0];
+
       events.forEach(ev => {
         const evItem = document.createElement("div");
         evItem.className = "agenda-item";
 
-        const horaInici = ev.start_time.includes(" ") ? ev.start_time.split(" ")[1] : ev.start_time;
+        let dataPart = "";
+        let horaPart = ev.start_time;
+
+        if (ev.start_time && ev.start_time.includes(" ")) {
+          const parts = ev.start_time.split(" ");
+          const rawDate = parts[0];
+          const rawTime = parts[1];
+
+          if (rawDate === avuiStr) {
+            dataPart = "Avui · ";
+          } else if (rawDate === demaStr) {
+            dataPart = "Demà · ";
+          } else {
+            const dateSplits = rawDate.split("-");
+            dataPart = (dateSplits.length === 3 ? `${dateSplits[2]}/${dateSplits[1]} · ` : `${rawDate} · `);
+          }
+          horaPart = rawTime;
+        }
+
         const horaFi = (ev.end_time && ev.end_time.includes(" ")) ? ` - ${ev.end_time.split(" ")[1]}` : "";
 
         evItem.innerHTML = `
-          <div class="agenda-time">🕒 ${horaInici}${horaFi}</div>
+          <div class="agenda-time">🕒 ${dataPart}${horaPart}${horaFi}</div>
           <div class="agenda-title">${ev.title}</div>
           ${ev.location ? `<div class="agenda-location">📍 ${ev.location}</div>` : ""}
         `;
@@ -235,6 +281,59 @@ newTaskForm.addEventListener("submit", async (e) => {
     }
   } catch (err) {
     alert("Error creant la tasca: " + err.message);
+  }
+});
+
+// MODAL DE CREACIÓ DE CITA D'AGENDA MANUAL
+btnAddEventUi.addEventListener("click", () => {
+  eventTitleInput.value = "";
+  eventLocInput.value = "";
+  eventDateInput.value = new Date().toISOString().split("T")[0];
+  eventTimeInput.value = "10:00";
+  eventDurationInput.value = "60";
+  newEventModal.classList.remove("hidden");
+});
+
+eventModalCloseBtn.addEventListener("click", () => newEventModal.classList.add("hidden"));
+eventCancelBtn.addEventListener("click", () => newEventModal.classList.add("hidden"));
+
+newEventForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const titol = eventTitleInput.value.trim();
+  const data = eventDateInput.value.trim();
+  const hora = eventTimeInput.value.trim();
+  const durada = parseInt(eventDurationInput.value || "60", 10);
+  const lloc = eventLocInput.value.trim();
+
+  if (!titol || !data || !hora) return;
+
+  const dataHoraInici = `${data} ${hora}`;
+  
+  // Calculem fi
+  const [h, m] = hora.split(":").map(Number);
+  const dtFi = new Date();
+  dtFi.setHours(h, m + durada, 0, 0);
+  const horaFiStr = `${String(dtFi.getHours()).padStart(2, '0')}:${String(dtFi.getMinutes()).padStart(2, '0')}`;
+  const dataHoraFi = `${data} ${horaFiStr}`;
+
+  try {
+    const res = await fetch("/api/events/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: titol,
+        start_time: dataHoraInici,
+        end_time: dataHoraFi,
+        location: lloc
+      })
+    });
+    if (res.ok) {
+      newEventModal.classList.add("hidden");
+      await fetchDashboard();
+      appendMessage("M.A.R.C.", `📅 Nova cita programada a l'agenda: **${titol}** el **${dataHoraInici}**.`);
+    }
+  } catch (err) {
+    alert("Error creant la cita: " + err.message);
   }
 });
 
@@ -339,7 +438,6 @@ function obrirModalAccio(pendingAction) {
       </div>
     `;
   } else {
-    // Genèric
     const claus = Object.keys(dades);
     if (claus.length > 0) {
       claus.forEach(k => {
@@ -409,7 +507,7 @@ async function enviarMissatgeXat(text) {
 
   appendMessage("USER", text, true);
   userInput.value = "";
-  const loadingMsg = appendMessage("M.A.R.C.", "Pensant i processant comanda executiva...");
+  const loadingMsg = appendMessage("M.A.R.C.", "Processant comanda executiva...");
 
   try {
     const res = await fetch("/chat", {
@@ -475,6 +573,25 @@ btnNewSession.addEventListener("click", () => {
 });
 
 // LISTENERS GENERALS
+if (btnSyncNow) {
+  btnSyncNow.addEventListener("click", async () => {
+    btnSyncNow.disabled = true;
+    btnSyncNow.textContent = "⟳ SINCRONITZANT...";
+    try {
+      const res = await fetch("/api/sync");
+      const data = await res.json();
+      appendMessage("M.A.R.C.", data.message || "Sincronització completada.");
+      await fetchDashboard();
+      await fetchSystemStatus();
+    } catch (err) {
+      appendMessage("M.A.R.C.", `⚠️ Error en sincronitzar: ${err.message}`);
+    } finally {
+      btnSyncNow.disabled = false;
+      btnSyncNow.textContent = "⟳ SINCRONITZA";
+    }
+  });
+}
+
 btnRefresh.addEventListener("click", () => {
   fetchDashboard();
   fetchSystemStatus();

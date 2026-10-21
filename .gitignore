@@ -222,3 +222,8 @@ __marimo__/
 *.sqlite
 *.sqlite3
 marc/data/
+
+# Google OAuth Credentials & Tokens
+credentials.json
+token.json
+

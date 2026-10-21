@@ -46,15 +46,25 @@ Crea o edita el fitxer `.env` a l'arrel del repositori:
 ```env
 GROQ_API_KEY=el_teu_groq_api_key
 
-# (Opcional) Per a enviament de correus reals via SMTP:
+# (Opcional) Per a lectura i enviament de correus reals (Gmail / Outlook):
+# EMAIL_USER=el_teu_correu@gmail.com
+# EMAIL_PASSWORD=la_teva_contrasenya_d_aplicacio
+# IMAP_HOST=imap.gmail.com
 # SMTP_HOST=smtp.gmail.com
 # SMTP_PORT=587
-# SMTP_USER=el_teu_correu@gmail.com
-# SMTP_PASSWORD=la_teva_contrasenya_d_aplicacio
+
+# (Opcional) Per a Spotify Web API (si no es posa, funciona amb l'app nativa d'escriptori):
+# SPOTIFY_CLIENT_ID=el_teu_spotify_client_id
+# SPOTIFY_CLIENT_SECRET=el_teu_spotify_client_secret
+# SPOTIFY_REDIRECT_URI=http://127.0.0.1:8888/callback
 
 # (Opcional) Per a enviament de notificacions a Telegram:
 # TELEGRAM_BOT_TOKEN=el_teu_token_de_bot
 # TELEGRAM_CHAT_ID=el_teu_chat_id
+
+# (Opcional) Per a Google Calendar:
+# Descarrega el fitxer 'credentials.json' (OAuth Client ID) de Google Cloud Console
+# i col·loca'l a l'arrel del projecte. S'obrirà automàticament el navegador per autoritzar.
 ```
 
 ### 4. Engegar SearXNG (Opcional per a cerques web)

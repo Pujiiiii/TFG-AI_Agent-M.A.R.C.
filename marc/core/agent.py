@@ -14,12 +14,14 @@ from marc.core.tools import (
     programar_esdeveniment,
     cancel_lar_esdeveniment,
     consultar_correus_recents,
-    llegir_correu_complet,
     preparar_i_enviar_correu,
+    reproduir_musica_spotify,
+    controlar_reproduccio_spotify,
     enviar_notificacio_o_missatge,
     generar_daily_briefing,
     buscar_informacio_internet,
-    visitar_pagina_web
+    visitar_pagina_web,
+    sincronitzar_dades_remotes
 )
 
 load_dotenv()
@@ -47,27 +49,30 @@ def get_agent_executor():
         programar_esdeveniment,
         cancel_lar_esdeveniment,
         consultar_correus_recents,
-        llegir_correu_complet,
         preparar_i_enviar_correu,
+        reproduir_musica_spotify,
+        controlar_reproduccio_spotify,
         enviar_notificacio_o_missatge,
         generar_daily_briefing,
         buscar_informacio_internet,
-        visitar_pagina_web
+        visitar_pagina_web,
+        sincronitzar_dades_remotes
     ]
     
     prompt = ChatPromptTemplate.from_messages([
         ("system", 
          "Ets en M.A.R.C. (Mòdul d'Assistència i Resposta Computacional), el secretari executiu i assistent personal autònom de l'usuari. "
-         "La teva feina és gestionar la seva jornada, coordinar la seva feina i comunicacions: "
+         "La teva feina és gestionar la seva jornada, coordinar la seva feina, comunicacions i multimèdia: "
          "- Gestionar tasques i to-dos (afegir, completar, prioritzar). "
-         "- Consultar l'agenda i programar o cancel·lar reunions i esdeveniments. "
-         "- Revisar correus de la bústia, redactar respostes i enviar correus. "
+         "- Consultar l'agenda i programar o cancel·lar reunions i esdeveniments (sincronitzat amb Google Calendar i local). "
+         "- Revisar correus de la bústia (IMAP en viu o local), redactar respostes i enviar correus via SMTP. "
+         "- Controlar la música a Spotify (cercar cançons, àlbums, artistes, pausar, reprendre o passar pista). "
          "- Enviar notificacions o missatges (Telegram / canals alertes). "
          "- Proporcionar el 'daily briefing' diari quan l'usuari ho demani o saludi pel matí. "
          "- Fer cerques a internet sobre conceptes, notícies o preparació de reunions. "
          "\n"
          "PROTOCOL IMPORTANT DE SEGURETAT (Human-in-the-Loop): "
-         "Qualsevol acció que impliqui enviar correus, programar reunions o enviar missatges requereix confirmació prèvia. "
+         "Qualsevol acció que impliqui enviar correus, programar o cancel·lar reunions o enviar missatges requereix confirmació prèvia. "
          "Quan executis una eina de proposta (com preparar correu, programar reunió o enviar missatge), explica a l'usuari "
          "els detalls de la proposta i que ha de confirmar-la des del panell de la interfície. "
          "Comunica't sempre en català, amb un to executiu, amable, clar, estructurat i eficient."),
