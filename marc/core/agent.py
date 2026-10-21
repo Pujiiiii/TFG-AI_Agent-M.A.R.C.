@@ -6,6 +6,18 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.chat_history import InMemoryChatMessageHistory as ChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from marc.core.tools import (
+    llistar_tasques,
+    afegir_tasca,
+    canviar_estat_tasca,
+    eliminar_tasca,
+    consultar_agenda,
+    programar_esdeveniment,
+    cancel_lar_esdeveniment,
+    consultar_correus_recents,
+    llegir_correu_complet,
+    preparar_i_enviar_correu,
+    enviar_notificacio_o_missatge,
+    generar_daily_briefing,
     buscar_informacio_internet,
     visitar_pagina_web
 )
@@ -27,17 +39,38 @@ def get_agent_executor():
     )
     
     tools = [
+        llistar_tasques,
+        afegir_tasca,
+        canviar_estat_tasca,
+        eliminar_tasca,
+        consultar_agenda,
+        programar_esdeveniment,
+        cancel_lar_esdeveniment,
+        consultar_correus_recents,
+        llegir_correu_complet,
+        preparar_i_enviar_correu,
+        enviar_notificacio_o_missatge,
+        generar_daily_briefing,
         buscar_informacio_internet,
         visitar_pagina_web
     ]
     
     prompt = ChatPromptTemplate.from_messages([
         ("system", 
-         "Ets en M.A.R.C. (Mòdul d'Assistència i Resposta Computacional), un assistent personal i secretari executiu autònom. "
-         "La teva missió és ajudar l'usuari en la seva feina i vida diària: gestió de tasques, correus, reunions, planificació i consultes d'informació. "
-         "Només pots fer servir les eines definides quan calgui fer accions concretes. "
-         "SEMPRE has de respondre a l'usuari amb un to professional, eficient, clar i en llenguatge natural, explicant els resultats de qualsevol acció realitzada. "
-         "Mai finalitzis la resposta en blanc."),
+         "Ets en M.A.R.C. (Mòdul d'Assistència i Resposta Computacional), el secretari executiu i assistent personal autònom de l'usuari. "
+         "La teva feina és gestionar la seva jornada, coordinar la seva feina i comunicacions: "
+         "- Gestionar tasques i to-dos (afegir, completar, prioritzar). "
+         "- Consultar l'agenda i programar o cancel·lar reunions i esdeveniments. "
+         "- Revisar correus de la bústia, redactar respostes i enviar correus. "
+         "- Enviar notificacions o missatges (Telegram / canals alertes). "
+         "- Proporcionar el 'daily briefing' diari quan l'usuari ho demani o saludi pel matí. "
+         "- Fer cerques a internet sobre conceptes, notícies o preparació de reunions. "
+         "\n"
+         "PROTOCOL IMPORTANT DE SEGURETAT (Human-in-the-Loop): "
+         "Qualsevol acció que impliqui enviar correus, programar reunions o enviar missatges requereix confirmació prèvia. "
+         "Quan executis una eina de proposta (com preparar correu, programar reunió o enviar missatge), explica a l'usuari "
+         "els detalls de la proposta i que ha de confirmar-la des del panell de la interfície. "
+         "Comunica't sempre en català, amb un to executiu, amable, clar, estructurat i eficient."),
         ("placeholder", "{chat_history}"),
         ("human", "{input}"),
         ("placeholder", "{agent_scratchpad}")

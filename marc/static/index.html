@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>M.A.R.C. // Assistent Personal & Secretari</title>
-  <link rel="stylesheet" href="/static/style.css?v=3.0">
+  <title>M.A.R.C. // Assistent Personal & Secretari Executiu</title>
+  <link rel="stylesheet" href="/static/style.css?v=3.2">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&display=swap" rel="stylesheet">
@@ -14,7 +14,7 @@
 </head>
 <body>
   <div class="hud-container">
-    <!-- BARRA LATERAL -->
+    <!-- BARRA LATERAL (HUD & SERVEIS) -->
     <aside class="sidebar">
       <div class="brand">
         <div class="pulse-dot"></div>
@@ -44,50 +44,94 @@
           <span class="badge" id="status-backend">ONLINE</span>
         </div>
         <div class="status-item">
+          <span>Base de Dades SQLite</span>
+          <span class="badge" id="status-db">ONLINE</span>
+        </div>
+        <div class="status-item">
           <span>Cerca SearXNG</span>
           <span class="badge" id="status-searxng">CHECKING...</span>
         </div>
+        <div class="status-item">
+          <span>Bústia Correu</span>
+          <span class="badge" id="status-email">LOCAL_HUB</span>
+        </div>
+        <div class="status-item">
+          <span>Canal Telegram</span>
+          <span class="badge" id="status-telegram">STANDBY</span>
+        </div>
       </div>
 
-      <!-- PANELL D'INFORMACIÓ I RESUM EXECUTIU -->
-      <div class="panel info-panel">
-        <div class="panel-header">
-          <h3>// PANELL EXECUTIU</h3>
+      <!-- PANELL INTERACTIU D'AGENDA I TASQUES -->
+      <div class="panel widget-panel">
+        <div class="widget-tabs">
+          <button id="tab-btn-tasks" class="widget-tab active">
+            TASQUES (<span id="task-count">0</span>)
+          </button>
+          <button id="tab-btn-agenda" class="widget-tab">
+            AGENDA (<span id="agenda-count">0</span>)
+          </button>
         </div>
-        <div id="executive-summary" class="executive-summary">
-          <div class="summary-card">
-            <span class="card-label">ROL</span>
-            <span class="card-value">Secretari Personal Intel·ligent</span>
+
+        <!-- VISTA DE TASQUES -->
+        <div id="tasks-container" class="widget-view">
+          <div class="widget-actions">
+            <span class="widget-subtitle">Llista de feina</span>
+            <button id="btn-add-task-ui" class="btn-micro" title="Afegir tasca manual">+ Nova</button>
           </div>
-          <div class="summary-card">
-            <span class="card-label">PROTOCOL</span>
-            <span class="card-value">Human-in-the-Loop (Supervisió Activa)</span>
+          <div id="tasks-list" class="widget-list">
+            <div class="loading">Carregant tasques...</div>
           </div>
-          <div class="summary-card">
-            <span class="card-label">MODALITAT</span>
-            <span class="card-value">Gestió Diària, Agenda i Comunicacions</span>
+        </div>
+
+        <!-- VISTA D'AGENDA D'AVUI -->
+        <div id="agenda-container" class="widget-view hidden">
+          <div class="widget-actions">
+            <span class="widget-subtitle" id="agenda-date-label">Reunions d'avui</span>
+          </div>
+          <div id="agenda-list" class="widget-list">
+            <div class="loading">Carregant agenda...</div>
           </div>
         </div>
       </div>
     </aside>
 
-    <!-- ZONA CENTRAL DE XAT -->
+    <!-- ZONA CENTRAL DE XAT I COMANDES -->
     <main class="main-content">
       <header class="main-header">
-        <span class="terminal-title">&gt; TERMINAL D'ORDRES // SESSIÓ: <span id="current-session-label">sessio_per_defecte</span></span>
+        <span class="terminal-title">&gt; TERMINAL D'ORDRES // ASSISTENT PERSONAL M.A.R.C. // SESSIÓ: <span id="current-session-label">sessio_per_defecte</span></span>
       </header>
 
       <section class="chat-container" id="chat-messages">
         <div class="message assistant">
           <div class="msg-author">M.A.R.C.</div>
-          <div class="msg-body">Hola! Sóc en <strong>M.A.R.C.</strong>, el teu assistent personal i secretari executiu. Estic a punt per ajudar-te a gestionar la teva jornada, planificar tasques, preparar comunicacions i buscar informació. En què et puc ajudar avui?</div>
+          <div class="msg-body">
+            Hola! Sóc en <strong>M.A.R.C.</strong>, el teu secretari executiu i assistent personal autònom.
+            <br><br>
+            Com puc ajudar-te a planificar la teva jornada avui? Pots fer servir els botons d'accions ràpides inferiors o demanar-me directament qualsevol gestió de feina, reunions o correus.
+          </div>
         </div>
       </section>
+
+      <!-- BARRA D'ACCIONS RÀPIDES -->
+      <div class="quick-actions-bar">
+        <button class="quick-chip" data-prompt="M.A.R.C., genera el meu daily briefing complet d'avui.">
+          ☀️ Daily Briefing
+        </button>
+        <button class="quick-chip" data-prompt="Quines reunions i cites tinc a l'agenda per a avui?">
+          📅 Agenda d'avui
+        </button>
+        <button class="quick-chip" data-prompt="Quines són les tasques pendents més urgents?">
+          📋 Tasques pendents
+        </button>
+        <button class="quick-chip" data-prompt="Revisa la meva bústia de correu i resumeix-me els correus no llegits.">
+          📬 Revisar correus
+        </button>
+      </div>
 
       <footer class="input-container">
         <form id="chat-form">
           <span class="prompt-arrow">&gt;</span>
-          <input type="text" id="user-input" placeholder="Comanda per a M.A.R.C. ..." autocomplete="off">
+          <input type="text" id="user-input" placeholder="Comanda per a M.A.R.C. (ex: 'Programa una reunió amb el tutor demà a les 10h') ..." autocomplete="off">
           <button type="submit" id="send-btn">EXEC</button>
         </form>
       </footer>
@@ -110,7 +154,7 @@
         </div>
       </div>
       <div class="modal-footer">
-        <span class="modal-hint">Aquesta acció requereix la teva autorització abans d'executar-se.</span>
+        <span class="modal-hint">Aquesta acció requereix la teva autorització explícita per executar-se.</span>
         <div class="modal-actions">
           <button id="modal-reject-btn" class="btn-action btn-reject">✕ REBUTJAR</button>
           <button id="modal-approve-btn" class="btn-action btn-approve">✓ APROVAR I EXECUTAR</button>
@@ -119,6 +163,47 @@
     </div>
   </div>
 
-  <script src="/static/app.js?v=3.0"></script>
+  <!-- MODAL CREACIÓ RÀPIDA DE TASQUES (UI) -->
+  <div id="new-task-modal" class="modal-overlay hidden">
+    <div class="modal-window modal-small">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span class="diff-tag">NOVA TASCA</span>
+          <span>Afegir a la llista de feina</span>
+        </div>
+        <button id="task-modal-close-btn" class="close-x">&times;</button>
+      </div>
+      <form id="new-task-form" class="modal-body form-body">
+        <div class="form-group">
+          <label for="task-title-input">Títol de la tasca *</label>
+          <input type="text" id="task-title-input" required placeholder="Ex: Preparar documentació del TFG">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="task-prio-input">Prioritat</label>
+            <select id="task-prio-input">
+              <option value="alta">🔴 Alta</option>
+              <option value="mitjana" selected>🟡 Mitjana</option>
+              <option value="baixa">🟢 Baixa</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="task-date-input">Data límit (opcional)</label>
+            <input type="date" id="task-date-input">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="task-desc-input">Descripció o notes</label>
+          <textarea id="task-desc-input" rows="3" placeholder="Detalls addicionals..."></textarea>
+        </div>
+        <div class="modal-footer">
+          <button type="button" id="task-cancel-btn" class="btn-action btn-reject">✕ CANCEL·LAR</button>
+          <button type="submit" class="btn-action btn-approve">💾 DESAR TASCA</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/static/app.js?v=3.2"></script>
 </body>
 </html>
