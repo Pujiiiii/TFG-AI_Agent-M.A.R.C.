@@ -6,20 +6,8 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.chat_history import InMemoryChatMessageHistory as ChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from marc.core.tools import (
-    llistar_arxius,
-    llegir_arxiu, 
-    crear_carpeta, 
-    esborrar_arxiu, 
     buscar_informacio_internet,
-    buscar_text_en_projecte,
-    buscar_arxiu_per_nom,
-    editar_arxiu_amb_diff,
-    visitar_pagina_web,
-    descarregar_recurs_internet,
-    executar_script_o_comanda,
-    gestio_git,
-    inspeccionar_estructura_projecte,
-    executar_tests_pytest
+    visitar_pagina_web
 )
 
 load_dotenv()
@@ -39,27 +27,16 @@ def get_agent_executor():
     )
     
     tools = [
-        llistar_arxius,
-        llegir_arxiu, 
-        crear_carpeta, 
-        esborrar_arxiu, 
         buscar_informacio_internet,
-        buscar_text_en_projecte,
-        buscar_arxiu_per_nom,
-        editar_arxiu_amb_diff,
-        visitar_pagina_web,
-        descarregar_recurs_internet,
-        executar_script_o_comanda,
-        gestio_git,
-        inspeccionar_estructura_projecte,
-        executar_tests_pytest
+        visitar_pagina_web
     ]
     
     prompt = ChatPromptTemplate.from_messages([
         ("system", 
-         "Ets en M.A.R.C. (Mòdul d'Assistència i Resposta Computacional), un enginyer de programari i assistent personal autònom. "
-         "Només pots fer servir les eines definides. "
-         "SEMPRE has de respondre a l'usuari amb un missatge en llenguatge natural explicant el resultat, fins i tot si una eina ha donat un error o no ha trobat dades. "
+         "Ets en M.A.R.C. (Mòdul d'Assistència i Resposta Computacional), un assistent personal i secretari executiu autònom. "
+         "La teva missió és ajudar l'usuari en la seva feina i vida diària: gestió de tasques, correus, reunions, planificació i consultes d'informació. "
+         "Només pots fer servir les eines definides quan calgui fer accions concretes. "
+         "SEMPRE has de respondre a l'usuari amb un to professional, eficient, clar i en llenguatge natural, explicant els resultats de qualsevol acció realitzada. "
          "Mai finalitzis la resposta en blanc."),
         ("placeholder", "{chat_history}"),
         ("human", "{input}"),

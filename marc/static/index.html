@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>M.A.R.C. // Interface</title>
-  <link rel="stylesheet" href="/static/style.css?v=2.3">
+  <title>M.A.R.C. // Assistent Personal & Secretari</title>
+  <link rel="stylesheet" href="/static/style.css?v=3.0">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&display=swap" rel="stylesheet">
@@ -19,16 +19,7 @@
       <div class="brand">
         <div class="pulse-dot"></div>
         <h2>M.A.R.C.</h2>
-        <span class="version">v2.0 // HUD</span>
-      </div>
-
-      <!-- WORKSPACE ROOT SELECTOR -->
-      <div class="panel">
-        <div class="panel-header">
-          <h3>// ESPAI DE TREBALL (ARREL)</h3>
-          <button id="btn-change-ws" title="Canviar directori base">CANVIA</button>
-        </div>
-        <div class="workspace-display" id="workspace-label">marc_test_dropzone</div>
+        <span class="version">v2.0 // SECRETARI</span>
       </div>
 
       <!-- SESSIONS -->
@@ -44,29 +35,38 @@
 
       <!-- SERVEIS ACTIUS -->
       <div class="panel">
-        <h3>// SERVEIS ACTIUS</h3>
+        <div class="panel-header">
+          <h3>// SERVEIS ACTIUS</h3>
+          <button id="btn-refresh" title="Actualitzar estat">↻</button>
+        </div>
         <div class="status-item">
           <span>Backend FastAPI</span>
           <span class="badge" id="status-backend">ONLINE</span>
         </div>
         <div class="status-item">
-          <span>SearxNG</span>
+          <span>Cerca SearXNG</span>
           <span class="badge" id="status-searxng">CHECKING...</span>
         </div>
       </div>
 
-      <!-- EXPLORADOR INTERACTIU DE FITXERS -->
-      <div class="panel file-panel">
+      <!-- PANELL D'INFORMACIÓ I RESUM EXECUTIU -->
+      <div class="panel info-panel">
         <div class="panel-header">
-          <h3>// GESTOR DE FITXERS</h3>
-          <div class="file-actions-header">
-            <button id="btn-new-file" title="Nou fitxer">+📄</button>
-            <button id="btn-new-folder" title="Nova carpeta">+📁</button>
-            <button id="btn-refresh" title="Actualitzar">↻</button>
-          </div>
+          <h3>// PANELL EXECUTIU</h3>
         </div>
-        <div id="file-tree-container" class="file-tree">
-          <div class="loading">Carregant arbre d'arxius...</div>
+        <div id="executive-summary" class="executive-summary">
+          <div class="summary-card">
+            <span class="card-label">ROL</span>
+            <span class="card-value">Secretari Personal Intel·ligent</span>
+          </div>
+          <div class="summary-card">
+            <span class="card-label">PROTOCOL</span>
+            <span class="card-value">Human-in-the-Loop (Supervisió Activa)</span>
+          </div>
+          <div class="summary-card">
+            <span class="card-label">MODALITAT</span>
+            <span class="card-value">Gestió Diària, Agenda i Comunicacions</span>
+          </div>
         </div>
       </div>
     </aside>
@@ -80,7 +80,7 @@
       <section class="chat-container" id="chat-messages">
         <div class="message assistant">
           <div class="msg-author">M.A.R.C.</div>
-          <div class="msg-body">Sistemes inicialitzats amb control d'espai de treball i explorador interactiu. Pots obrir, editar, moure o crear arxius des de la barra lateral.</div>
+          <div class="msg-body">Hola! Sóc en <strong>M.A.R.C.</strong>, el teu assistent personal i secretari executiu. Estic a punt per ajudar-te a gestionar la teva jornada, planificar tasques, preparar comunicacions i buscar informació. En què et puc ajudar avui?</div>
         </div>
       </section>
 
@@ -94,66 +94,31 @@
     </main>
   </div>
 
-  <!-- MODAL D'EDICIÓ DIRECTA DE FITXERS -->
-  <div id="file-editor-modal" class="modal-overlay hidden">
-    <div class="modal-window">
-      <div class="modal-header">
-        <div class="modal-title">
-          <span class="diff-tag">EDITOR</span>
-          <span id="editor-filename">nom_fitxer.py</span>
-        </div>
-        <button id="editor-close-btn" class="close-x">&times;</button>
-      </div>
-      <div class="modal-body" style="padding: 10px;">
-        <textarea id="file-editor-textarea" spellcheck="false"></textarea>
-      </div>
-      <div class="modal-footer">
-        <span id="editor-status" class="modal-hint">Modifica el fitxer i desa els canvis.</span>
-        <div class="modal-actions">
-          <button id="editor-cancel-btn" class="btn-action btn-reject">✕ CANCEL·LAR</button>
-          <button id="editor-save-btn" class="btn-action btn-approve">💾 DESAR CANVIS</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- MODAL DE REVISIÓ DE CANVIS DE L'AGENT (STAGING / RUNNER) -->
+  <!-- MODAL DE CONFIRMACIÓ D'ACCIONS (HUMAN-IN-THE-LOOP) -->
   <div id="diff-modal" class="modal-overlay hidden">
     <div class="modal-window">
       <div class="modal-header">
         <div class="modal-title">
-          <span class="diff-tag">STAGING</span>
-          <span id="modal-summary">Revisió de Proposta</span>
+          <span class="diff-tag">CONFIRMACIÓ REQUERIDA</span>
+          <span id="modal-summary">Proposta d'acció de M.A.R.C.</span>
         </div>
         <button id="modal-close-btn" class="close-x">&times;</button>
       </div>
-      <div id="modal-tabs" class="modal-tabs"></div>
       <div class="modal-body">
-        <div class="diff-viewer-wrapper">
-          <div class="diff-pane">
-            <div class="pane-header">ORIGINAL (<span id="diff-filename-orig">file</span>)</div>
-            <pre><code id="code-before" class="language-python"></code></pre>
-          </div>
-          <div class="diff-pane">
-            <div class="pane-header new-header">PROPOSTA DE M.A.R.C.</div>
-            <pre><code id="code-after" class="language-python"></code></pre>
-          </div>
-        </div>
-        <div id="command-view" class="command-view hidden">
-          <div class="pane-header">ORDRE A EXECUTAR AL SISTEMA:</div>
-          <pre><code id="command-text" class="language-bash"></code></pre>
+        <div id="action-details" class="action-details-container">
+          <!-- Detalls de l'acció renderitzats dinàmicament -->
         </div>
       </div>
       <div class="modal-footer">
-        <span class="modal-hint">Valida l'execució o escriptura.</span>
+        <span class="modal-hint">Aquesta acció requereix la teva autorització abans d'executar-se.</span>
         <div class="modal-actions">
           <button id="modal-reject-btn" class="btn-action btn-reject">✕ REBUTJAR</button>
-          <button id="modal-approve-btn" class="btn-action btn-approve">✓ APROVAR</button>
+          <button id="modal-approve-btn" class="btn-action btn-approve">✓ APROVAR I EXECUTAR</button>
         </div>
       </div>
     </div>
   </div>
 
-  <script src="/static/app.js?v=2.2"></script>
+  <script src="/static/app.js?v=3.0"></script>
 </body>
 </html>
