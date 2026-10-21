@@ -13,8 +13,12 @@ from marc.core.db import (
     db_get_tasks,
     db_add_task,
     db_toggle_task,
+    db_delete_task,
     db_get_sync_summary,
-    get_db_connection
+    get_db_connection,
+    db_get_all_sessions,
+    db_get_session_messages,
+    db_add_chat_message
 )
 from marc.services.sync_manager import (
     run_full_synchronization,
@@ -23,6 +27,7 @@ from marc.services.sync_manager import (
 from marc.services.calendar_service import (
     fetch_calendar_events,
     add_calendar_event,
+    delete_calendar_event,
     is_google_calendar_connected
 )
 from marc.services.email_service import (
@@ -65,12 +70,40 @@ class CreateTaskRequest(BaseModel):
     due_date: str = ""
     description: str = ""
 
+class UpdateTaskRequest(BaseModel):
+    task_id: int
+    title: str
+    priority: str = "mitjana"
+    due_date: str = ""
+    description: str = ""
+
+class DeleteTaskRequest(BaseModel):
+    task_id: int
+
 class CreateEventRequest(BaseModel):
     title: str
     start_time: str
     end_time: str = ""
     location: str = ""
     description: str = ""
+
+class UpdateEventRequest(BaseModel):
+    event_id: str
+    calendar_id: str = "primary"
+    title: str
+    start_time: str
+    end_time: str = ""
+    location: str = ""
+    description: str = ""
+
+class DeleteEventRequest(BaseModel):
+    event_id: str
+    calendar_id: str = "primary"
+
+class AdvanceWorkflowRequest(BaseModel):
+    action: str
+    confirmed_date: str = ""
+    counter_proposal_text: str = ""
 
 class SpotifyPlayRequest(BaseModel):
     query: str
@@ -82,6 +115,13 @@ class SpotifyControlRequest(BaseModel):
 # --- ENDPOINTS CHAT I ACTIONS (HITL) ---
 @app.post("/chat")
 def xat(peticio: ChatRequest):
+    # Persistència del missatge de l'usuari a SQLite
+    try:
+        from marc.core.db import db_add_chat_message
+        db_add_chat_message(peticio.session_id, "user", peticio.message)
+    except Exception as e:
+        print(f"[DB Chat Save Error]: {e}")
+
     try:
         resposta = agent_amb_historial.invoke(
             {"input": peticio.message},
@@ -94,7 +134,14 @@ def xat(peticio: ChatRequest):
         output_text = "⚠️ **Límit d'ús assolit (Rate Limit 429)**. Si us plau, espera uns segons i torna a provar-ho."
     except Exception as e:
         output_text = f"⚠️ S'ha produït un error processant la petició: {str(e)}"
-    
+
+    # Persistència de la resposta de M.A.R.C. a SQLite
+    try:
+        from marc.core.db import db_add_chat_message
+        db_add_chat_message(peticio.session_id, "assistant", output_text)
+    except Exception as e:
+        print(f"[DB Chat Save Error]: {e}")
+
     accio = consumir_ultima_accio()
     pending = None
     if accio:
@@ -106,6 +153,12 @@ def xat(peticio: ChatRequest):
         }
 
     return {"response": output_text, "pending_action": pending}
+
+@app.get("/api/sessions/{session_id}/messages")
+def get_session_messages_endpoint(session_id: str):
+    """Retorna tots els missatges guardats d'una sessió per restaurar-los al navegador."""
+    from marc.core.db import db_get_session_messages
+    return db_get_session_messages(session_id)
 
 @app.post("/api/confirm-action")
 async def confirm_action_endpoint(body: ConfirmRequest):
@@ -128,7 +181,7 @@ async def confirm_action_endpoint(body: ConfirmRequest):
 def get_system_status():
     searxng_online = False
     try:
-        r = requests.get("http://localhost:8080", timeout=1)
+        r = requests.get("http://127.0.0.1:8080", timeout=0.5)
         searxng_online = (r.status_code == 200)
     except Exception:
         searxng_online = False
@@ -164,35 +217,85 @@ def get_system_status():
             "pending": sync_summary,
             "internet": has_internet
         },
-        "sessions": list(store.keys()) if store else ["sessio_per_defecte"]
+        "sessions": db_get_all_sessions()
     }
 
 @app.get("/api/sync")
 def trigger_sync():
-    """Executa la sincronització de cites i correus desats fora de línia."""
-    return run_full_synchronization()
+    """Executa la sincronització de cites i correus desats fora de línia, processa correus de la UdG i avalua fluxos asíncrons."""
+    from marc.services.udg_email_service import process_all_pending_udg_emails
+    from marc.services.workflow_engine import run_workflow_cycle
+    sync_res = run_full_synchronization()
+    udg_res = process_all_pending_udg_emails()
+    wf_res = run_workflow_cycle()
+    
+    combined_msg = sync_res.get("message", "")
+    if udg_res.get("processed_count", 0) > 0:
+        combined_msg += f" | UdG: {udg_res['total_tasks']} tasques creades, {udg_res['total_events']} terminis programats."
+    if wf_res.get("total_triggered", 0) > 0:
+        combined_msg += f" | Fluxos: {wf_res['total_triggered']} automatitzacions resoltes."
+    
+    return {
+        "online": sync_res.get("online", True),
+        "status": sync_res.get("status", "online"),
+        "sync": sync_res,
+        "udg": udg_res,
+        "workflows": wf_res,
+        "message": combined_msg
+    }
+
+@app.get("/api/workflows")
+def get_workflows_endpoint(status: str = None):
+    """Retorna els fluxos de treball asíncrons registrats."""
+    from marc.core.db import db_get_workflows
+    return db_get_workflows(status=status)
+
+@app.post("/api/workflows/run")
+def run_workflows_endpoint():
+    """Executa un cicle de verificació de triggers asíncrons."""
+    from marc.services.workflow_engine import run_workflow_cycle
+    return run_workflow_cycle()
+
+@app.get("/api/udg/analyze")
+@app.post("/api/udg/analyze")
+def analyze_udg_endpoint():
+    """Analitza automàticament els correus pendents de la UdG i crea les tasques i terminis oportuns."""
+    from marc.services.udg_email_service import process_all_pending_udg_emails
+    return process_all_pending_udg_emails()
 
 @app.get("/api/dashboard")
-def get_dashboard():
-    """Retorna les tasques, totes les cites properes de l'agenda i correus no llegits."""
+def get_dashboard(limit_agenda: int = 15, limit_tasks: int = 15, force_refresh: bool = False):
+    """Retorna les tasques, cites de l'agenda (amb paginació suau) i correus no llegits."""
+    from marc.core.db import db_get_workflows
     tasques = db_get_tasks()
-    # Obtenim TOTS els esdeveniments (sense filtrar només avui per poder mostrar cites de demà i pròximes)
-    tots_esdeveniments = fetch_calendar_events()
+    tots_esdeveniments = fetch_calendar_events(force_refresh=force_refresh)
     correus_no_llegits = fetch_unread_emails(limit=5)
+    tots_fluxos = db_get_workflows()
 
     pendents_count = sum(1 for t in tasques if t["status"] == "pendent")
     completades_count = sum(1 for t in tasques if t["status"] == "completada")
+    total_events_count = len(tots_esdeveniments)
+    total_tasks_count = len(tasques)
+    active_workflows_count = sum(1 for w in tots_fluxos if w["status"] == "pending")
 
     return {
         "today_date": datetime.now().strftime("%d/%m/%Y"),
-        "tasks": tasques,
-        "events": tots_esdeveniments,
+        "tasks": tasques[:limit_tasks],
+        "all_tasks": tasques,
+        "total_tasks": total_tasks_count,
+        "pending_tasks": pendents_count,
+        "events": tots_esdeveniments[:limit_agenda],
+        "all_events": tots_esdeveniments,
+        "total_events": total_events_count,
         "unread_emails_count": len(correus_no_llegits),
         "unread_emails": correus_no_llegits,
+        "workflows": tots_fluxos,
+        "active_workflows_count": active_workflows_count,
         "stats": {
             "pending_tasks": pendents_count,
             "completed_tasks": completades_count,
-            "total_events": len(tots_esdeveniments)
+            "total_events": total_events_count,
+            "active_workflows": active_workflows_count
         }
     }
 
@@ -216,6 +319,23 @@ def create_task_endpoint(req: CreateTaskRequest):
     )
     return {"success": True, "task_id": tid, "message": "Tasca creada correctament."}
 
+@app.post("/api/tasks/update")
+def update_task_endpoint(req: UpdateTaskRequest):
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute(
+        "UPDATE tasks SET title = ?, priority = ?, due_date = ?, description = ? WHERE id = ?",
+        (req.title.strip(), req.priority.strip(), req.due_date.strip() if req.due_date else None, req.description.strip(), req.task_id)
+    )
+    conn.commit()
+    conn.close()
+    return {"success": True, "message": "Tasca actualitzada correctament."}
+
+@app.post("/api/tasks/delete")
+def delete_task_endpoint(req: DeleteTaskRequest):
+    db_delete_task(req.task_id)
+    return {"success": True, "message": "Tasca eliminada correctament."}
+
 @app.post("/api/events/create")
 def create_event_endpoint(req: CreateEventRequest):
     if not req.title.strip() or not req.start_time.strip():
@@ -228,6 +348,53 @@ def create_event_endpoint(req: CreateEventRequest):
         description=req.description
     )
     return {"success": True, "result": res, "message": "Cita afegida a l'agenda."}
+
+@app.post("/api/events/update")
+def update_event_endpoint(req: UpdateEventRequest):
+    delete_calendar_event(req.event_id, req.calendar_id)
+    res = add_calendar_event(
+        title=req.title,
+        start_time=req.start_time,
+        end_time=req.end_time,
+        location=req.location,
+        description=req.description
+    )
+    return {"success": True, "result": res, "message": "Esdeveniment actualitzat correctament."}
+
+@app.post("/api/events/delete")
+def delete_event_endpoint(req: DeleteEventRequest):
+    res = delete_calendar_event(req.event_id, req.calendar_id)
+    return {"success": True, "message": res}
+
+@app.get("/api/workflows/{workflow_id}/logs")
+def get_workflow_logs_endpoint(workflow_id: int):
+    from marc.core.db import db_get_workflow_logs
+    return db_get_workflow_logs(workflow_id)
+
+@app.post("/api/workflows/{workflow_id}/advance")
+def advance_workflow_endpoint(workflow_id: int, req: AdvanceWorkflowRequest):
+    from marc.core.db import db_get_workflow, db_update_workflow, db_add_workflow_log
+    from marc.services.calendar_service import add_calendar_event
+    wf = db_get_workflow(workflow_id)
+    if not wf:
+        raise HTTPException(status_code=404, detail="Flux no trobat.")
+        
+    if req.action == "accept_alternative":
+        date_to_use = req.confirmed_date or wf.get("context_data", {}).get("proposed_datetime", "")
+        event_title = wf.get("action_config", {}).get("event_title") or wf["title"]
+        add_calendar_event(event_title, date_to_use, "", wf.get("action_config", {}).get("location", "Despatx / Online"), "Acordat en negociació.")
+        db_update_workflow(workflow_id, status="completed", result_summary=f"Data alternativa acceptada: {date_to_use}")
+        db_add_workflow_log(workflow_id, "user_accepted_alternative", f"L'usuari ha acceptat la data {date_to_use}")
+        return {"success": True, "message": f"Reunió programada el {date_to_use}."}
+    elif req.action == "cancel":
+        db_update_workflow(workflow_id, status="cancelled", result_summary="Cancel·lat per l'usuari.")
+        db_add_workflow_log(workflow_id, "user_cancelled", "Cancel·lat des de la interfície.")
+        return {"success": True, "message": "Flux cancel·lat."}
+    elif req.action == "propose_counter":
+        db_update_workflow(workflow_id, status="pending", context_update={"last_counter_proposal": req.counter_proposal_text}, result_summary="Nova contraproposta enviada. Esperant resposta.")
+        db_add_workflow_log(workflow_id, "counter_proposal_sent", f"Nova proposta: {req.counter_proposal_text}")
+        return {"success": True, "message": "Nova proposta registrada. S'espera la confirmació."}
+    return {"success": False, "message": "Acció no reconeguda."}
 
 @app.post("/api/spotify/play")
 def spotify_play_endpoint(req: SpotifyPlayRequest):

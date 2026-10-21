@@ -1,5 +1,6 @@
 import os
 import sqlite3
+import json
 from datetime import datetime, timedelta
 
 DB_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
@@ -71,6 +72,49 @@ def init_db():
     )
     """)
 
+    # Taula d'Historial de Converses / Sessions de Xat (Persistent i ultra-lleugera)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS chat_messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        session_id TEXT NOT NULL,
+        sender TEXT NOT NULL,
+        message TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_chat_session ON chat_messages(session_id)")
+
+    # Taula de Fluxos de Treball Asíncrons (Generic Workflow & State Machine Engine)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS workflows (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        workflow_type TEXT NOT NULL,
+        status TEXT DEFAULT 'pending',
+        trigger_type TEXT NOT NULL,
+        trigger_condition TEXT,
+        action_type TEXT NOT NULL,
+        action_config TEXT,
+        context_data TEXT,
+        result_summary TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_workflow_status ON workflows(status)")
+
+    # Taula de Logs d'Auditoria dels Fluxos
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS workflow_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        workflow_id INTEGER NOT NULL,
+        event_type TEXT NOT NULL,
+        detail TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(workflow_id) REFERENCES workflows(id) ON DELETE CASCADE
+    )
+    """)
+
     conn.commit()
 
     # Migració de seguretat per si la taula ja existia sense les columnes de sincronització
@@ -86,6 +130,10 @@ def init_db():
         cols_emails = [row[1] for row in cursor.fetchall()]
         if "synced_remote" not in cols_emails:
             cursor.execute("ALTER TABLE emails ADD COLUMN synced_remote INTEGER DEFAULT 0")
+        if "is_analyzed" not in cols_emails:
+            cursor.execute("ALTER TABLE emails ADD COLUMN is_analyzed INTEGER DEFAULT 0")
+        if "analysis_result" not in cols_emails:
+            cursor.execute("ALTER TABLE emails ADD COLUMN analysis_result TEXT")
 
         conn.commit()
     except Exception as e:
@@ -305,5 +353,260 @@ def db_get_sync_summary():
         "total_pending": pending_events + pending_emails
     }
 
+def db_get_unanalyzed_udg_emails():
+    """Retorna els correus de la bústia que provenen de la UdG, Moodle o departaments i que encara no han estat analitzats."""
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("""
+        SELECT * FROM emails 
+        WHERE folder = 'inbox' 
+          AND is_analyzed = 0 
+          AND (
+            LOWER(sender) LIKE '%udg.edu%' 
+            OR LOWER(sender) LIKE '%moodle%' 
+            OR LOWER(sender) LIKE '%universitat%'
+            OR LOWER(subject) LIKE '%udg%' 
+            OR LOWER(subject) LIKE '%moodle%' 
+            OR LOWER(subject) LIKE '%pràctica%'
+            OR LOWER(subject) LIKE '%practica%'
+            OR LOWER(subject) LIKE '%lliurament%'
+            OR LOWER(subject) LIKE '%examen%'
+            OR LOWER(body) LIKE '%udg.edu%'
+            OR LOWER(body) LIKE '%campus virtual%'
+          )
+        ORDER BY id ASC
+    """)
+    rows = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return rows
+
+def db_mark_email_analyzed(email_id: int, result_summary: str = ""):
+    """Marca un correu com a analitzat i en guarda el resum de decisions preses."""
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute(
+        "UPDATE emails SET is_analyzed = 1, analysis_result = ?, is_read = 1 WHERE id = ?",
+        (result_summary.strip(), email_id)
+    )
+    conn.commit()
+    conn.close()
+
+def db_ensure_sample_udg_emails():
+    """Assegura l'existència de correus acadèmics d'exemple de la UdG per a proves si no n'hi ha cap."""
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT COUNT(*) FROM emails WHERE sender LIKE '%udg.edu%' OR sender LIKE '%moodle%'")
+    if c.fetchone()[0] == 0:
+        c.execute("""
+            INSERT INTO emails (sender, recipient, subject, body, folder, is_read, synced_remote, is_analyzed)
+            VALUES 
+            (
+                'professor.sgbd@eps.udg.edu',
+                'marcpujol2601@gmail.com',
+                '[SGBD] Lliurament de la Pràctica 2 - Disseny de base de dades NoSQL',
+                'Benvolguts alumnes de Sistemes de Gestió de Bases de Dades,\n\nUs recordem que el termini improrrogable per lliurar la Pràctica 2 (Modelat NoSQL amb MongoDB) a través de la bústia de lliuraments del Campus Virtual finalitza el proper 28 d''octubre de 2026 a les 23:59h.\n\nLa pràctica s''ha de lliurar en format ZIP amb la memòria explicativa i els scripts de càrrega. Té un pes del 20% en l''avaluació continuada.\n\nAtentament,\nEquip docent de SGBD - EPS UdG',
+                'inbox',
+                0,
+                1,
+                0
+            ),
+            (
+                'avisos.moodle@udg.edu',
+                'marcpujol2601@gmail.com',
+                '[Habilitats Directives] Convocatòria Presentació de l''Estudi de Cas',
+                'Hola Marc,\n\nS''ha publicat al Campus Virtual la convocatòria oficial per a la defensa de l''Estudi de Cas en equip d''Habilitats Directives i de Comunicació.\n\nLa teva sessió tindrà lloc el proper 29 d''octubre de 2026 a les 14:30h a l''aula II-02B de l''EPS.\n\nRecordeu portar la presentació en PDF abans d''iniciar la classe.\n\nSalutacions,\nCoordinació Moodle UdG',
+                'inbox',
+                0,
+                1,
+                0
+            )
+        """)
+        conn.commit()
+    conn.close()
+
+def db_add_chat_message(session_id: str, sender: str, message: str):
+    """Guarda un missatge de la conversa a la sessió indicada a SQLite."""
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute(
+        "INSERT INTO chat_messages (session_id, sender, message) VALUES (?, ?, ?)",
+        (session_id.strip(), sender.strip(), message.strip())
+    )
+    conn.commit()
+    msg_id = c.lastrowid
+    conn.close()
+    return msg_id
+
+def db_get_session_messages(session_id: str, limit: int = 200):
+    """Retorna els missatges d'una sessió ordenats cronològicament."""
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute(
+        "SELECT id, session_id, sender, message, created_at FROM chat_messages WHERE session_id = ? ORDER BY id ASC LIMIT ?",
+        (session_id.strip(), limit)
+    )
+    rows = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return rows
+
+def db_get_all_sessions():
+    """Retorna totes les sessions que tenen missatges registrats."""
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT DISTINCT session_id FROM chat_messages ORDER BY id DESC")
+    sessions = [row["session_id"] for row in c.fetchall()]
+    conn.close()
+    if "sessio_per_defecte" not in sessions:
+        sessions.insert(0, "sessio_per_defecte")
+    return sessions
+
+# --- FUNCIONS AUXILIARS DE FLUXOS DE TREBALL ASÍNCRONS (GENERIC WORKFLOW ENGINE) ---
+def db_create_workflow(
+    title: str,
+    workflow_type: str,
+    trigger_type: str,
+    trigger_condition: dict,
+    action_type: str,
+    action_config: dict,
+    context_data: dict = None
+) -> int:
+    """Crea i registra un nou flux asíncron a SQLite."""
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute(
+        """
+        INSERT INTO workflows 
+        (title, workflow_type, status, trigger_type, trigger_condition, action_type, action_config, context_data)
+        VALUES (?, ?, 'pending', ?, ?, ?, ?, ?)
+        """,
+        (
+            title.strip(),
+            workflow_type.strip(),
+            trigger_type.strip(),
+            json.dumps(trigger_condition or {}, ensure_ascii=False),
+            action_type.strip(),
+            json.dumps(action_config or {}, ensure_ascii=False),
+            json.dumps(context_data or {}, ensure_ascii=False)
+        )
+    )
+    conn.commit()
+    wf_id = c.lastrowid
+    
+    c.execute(
+        "INSERT INTO workflow_logs (workflow_id, event_type, detail) VALUES (?, 'created', ?)",
+        (wf_id, f"Flux '{title}' creat amb èxit. Esperant trigger de tipus '{trigger_type}'.")
+    )
+    conn.commit()
+    conn.close()
+    return wf_id
+
+def db_get_workflows(status: str = None, trigger_type: str = None) -> list:
+    """Retorna els fluxos de treball filtrats per estat o tipus de trigger."""
+    conn = get_db_connection()
+    c = conn.cursor()
+    query = "SELECT * FROM workflows WHERE 1=1"
+    params = []
+    if status:
+        query += " AND status = ?"
+        params.append(status.strip())
+    if trigger_type:
+        query += " AND trigger_type = ?"
+        params.append(trigger_type.strip())
+    query += " ORDER BY id DESC"
+    
+    c.execute(query, params)
+    rows = []
+    for r in c.fetchall():
+        d = dict(r)
+        for f in ["trigger_condition", "action_config", "context_data"]:
+            if d.get(f):
+                try:
+                    d[f] = json.loads(d[f])
+                except Exception:
+                    d[f] = {}
+            else:
+                d[f] = {}
+        rows.append(d)
+    conn.close()
+    return rows
+
+def db_get_workflow(workflow_id: int) -> dict:
+    """Retorna un flux de treball per id amb els seus camps JSON deserialitzats."""
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT * FROM workflows WHERE id = ?", (workflow_id,))
+    row = c.fetchone()
+    conn.close()
+    if not row:
+        return None
+    d = dict(row)
+    for f in ["trigger_condition", "action_config", "context_data"]:
+        if d.get(f):
+            try:
+                d[f] = json.loads(d[f])
+            except Exception:
+                d[f] = {}
+        else:
+            d[f] = {}
+    return d
+
+def db_update_workflow(workflow_id: int, status: str = None, context_update: dict = None, result_summary: str = None):
+    """Actualitza l'estat o context d'un flux existent."""
+    conn = get_db_connection()
+    c = conn.cursor()
+    
+    updates = ["updated_at = CURRENT_TIMESTAMP"]
+    params = []
+    
+    if status:
+        updates.append("status = ?")
+        params.append(status)
+    if result_summary is not None:
+        updates.append("result_summary = ?")
+        params.append(result_summary)
+        
+    if context_update:
+        c.execute("SELECT context_data FROM workflows WHERE id = ?", (workflow_id,))
+        row = c.fetchone()
+        current_ctx = {}
+        if row and row["context_data"]:
+            try:
+                current_ctx = json.loads(row["context_data"])
+            except Exception:
+                current_ctx = {}
+        current_ctx.update(context_update)
+        updates.append("context_data = ?")
+        params.append(json.dumps(current_ctx, ensure_ascii=False))
+        
+    params.append(workflow_id)
+    sql = f"UPDATE workflows SET {', '.join(updates)} WHERE id = ?"
+    c.execute(sql, params)
+    conn.commit()
+    conn.close()
+
+def db_add_workflow_log(workflow_id: int, event_type: str, detail: str):
+    """Afegeix una entrada a l'auditoria del flux."""
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute(
+        "INSERT INTO workflow_logs (workflow_id, event_type, detail) VALUES (?, ?, ?)",
+        (workflow_id, event_type.strip(), detail.strip())
+    )
+    conn.commit()
+    conn.close()
+
+def db_get_workflow_logs(workflow_id: int) -> list:
+    """Retorna l'historial de logs d'un flux determinat."""
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute(
+        "SELECT id, workflow_id, event_type, detail, created_at FROM workflow_logs WHERE workflow_id = ? ORDER BY id ASC",
+        (workflow_id,)
+    )
+    rows = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return rows
+
 # Inicialitzar la base de dades
 init_db()
+db_ensure_sample_udg_emails()

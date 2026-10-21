@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>M.A.R.C. // Assistent Personal & Secretari Executiu</title>
-  <link rel="stylesheet" href="/static/style.css?v=3.5">
+  <link rel="stylesheet" href="/static/style.css?v=5.0">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&display=swap" rel="stylesheet">
@@ -22,61 +22,75 @@
         <span class="version">v2.5 // SECRETARI</span>
       </div>
 
-      <!-- SESSIONS -->
-      <div class="panel">
-        <div class="panel-header">
-          <h3>// SESSIONS</h3>
-          <button id="btn-new-session" title="Nova sessió">+ NOU</button>
+      <!-- SESSIONS (COMPACT) -->
+      <div class="panel panel-sessions">
+        <div class="session-compact-row">
+          <span class="panel-mini-title">// SESSIÓ</span>
+          <select id="session-select" class="session-dropdown-compact">
+            <option value="sessio_per_defecte">sessio_per_defecte</option>
+          </select>
+          <button id="btn-new-session" class="btn-micro" title="Nova sessió">+ NOU</button>
         </div>
-        <select id="session-select" class="session-dropdown">
-          <option value="sessio_per_defecte">sessio_per_defecte</option>
-        </select>
       </div>
 
-      <!-- SERVEIS ACTIUS -->
-      <div class="panel">
-        <div class="panel-header">
-          <h3>// SERVEIS ACTIUS</h3>
-          <div style="display:flex; gap:6px;">
-            <button id="btn-sync-now" title="Sincronitzar cua local amb servidors remots">⟳ SINCRONITZA</button>
-            <button id="btn-refresh" title="Actualitzar estat">↻</button>
+      <!-- SERVEIS ACTIUS (COMPACT HUD) -->
+      <div class="panel panel-services">
+        <div class="panel-header" id="services-header" style="cursor: pointer;" title="Fes clic per plegar/desplegar els serveis">
+          <div class="services-title-wrap">
+            <h3>// SERVEIS</h3>
+            <span id="services-summary-pill" class="summary-pill online">ONLINE</span>
+            <span id="services-toggle-icon" class="toggle-icon">▾</span>
+          </div>
+          <div style="display:flex; gap:4px;">
+            <button id="btn-sync-now" class="btn-micro" title="Sincronitzar cua local amb servidors remots">⟳ SINC</button>
+            <button id="btn-refresh" class="btn-micro" title="Actualitzar estat">↻</button>
           </div>
         </div>
-        <div class="status-item">
-          <span>Xarxa / Internet</span>
-          <span class="badge" id="status-network">CHECKING...</span>
-        </div>
-        <div class="status-item">
-          <span>Backend FastAPI</span>
-          <span class="badge" id="status-backend">ONLINE</span>
-        </div>
-        <div class="status-item">
-          <span>Base de Dades</span>
-          <span class="badge" id="status-db">ONLINE</span>
-        </div>
-        <div class="status-item">
-          <span>Google Calendar</span>
-          <span class="badge" id="status-calendar">LOCAL_DB</span>
-        </div>
-        <div class="status-item">
-          <span>Bústia Correu</span>
-          <span class="badge" id="status-email">LOCAL_HUB</span>
-        </div>
-        <div class="status-item">
-          <span>Spotify</span>
-          <span class="badge" id="status-spotify">NATIVE_APP</span>
-        </div>
-        <div class="status-item">
-          <span>Cerca SearXNG</span>
-          <span class="badge" id="status-searxng">CHECKING...</span>
-        </div>
-        <div class="status-item">
-          <span>Canal Telegram</span>
-          <span class="badge" id="status-telegram">STANDBY</span>
+        <div id="services-grid" class="services-compact-grid">
+          <div class="status-chip" title="Xarxa / Connexió a Internet">
+            <span class="chip-dot" id="dot-network">●</span>
+            <span class="chip-label">NET</span>
+            <span class="chip-val badge" id="status-network">ONLINE</span>
+          </div>
+          <div class="status-chip" title="Backend FastAPI">
+            <span class="chip-dot" id="dot-backend">●</span>
+            <span class="chip-label">API</span>
+            <span class="chip-val badge" id="status-backend">ONLINE</span>
+          </div>
+          <div class="status-chip" title="Base de Dades SQLite">
+            <span class="chip-dot" id="dot-db">●</span>
+            <span class="chip-label">DB</span>
+            <span class="chip-val badge" id="status-db">ONLINE</span>
+          </div>
+          <div class="status-chip" title="Google Calendar">
+            <span class="chip-dot" id="dot-calendar">●</span>
+            <span class="chip-label">CAL</span>
+            <span class="chip-val badge" id="status-calendar">LOCAL_DB</span>
+          </div>
+          <div class="status-chip" title="Bústia Correu IMAP/SMTP">
+            <span class="chip-dot" id="dot-email">●</span>
+            <span class="chip-label">MAIL</span>
+            <span class="chip-val badge" id="status-email">LOCAL_HUB</span>
+          </div>
+          <div class="status-chip" title="Spotify Multimèdia">
+            <span class="chip-dot" id="dot-spotify">●</span>
+            <span class="chip-label">SPOT</span>
+            <span class="chip-val badge" id="status-spotify">NATIVE_APP</span>
+          </div>
+          <div class="status-chip" title="Cerca SearXNG">
+            <span class="chip-dot" id="dot-searxng">●</span>
+            <span class="chip-label">SRX</span>
+            <span class="chip-val badge" id="status-searxng">ONLINE</span>
+          </div>
+          <div class="status-chip" title="Canal Telegram">
+            <span class="chip-dot" id="dot-telegram">●</span>
+            <span class="chip-label">TG</span>
+            <span class="chip-val badge" id="status-telegram">STANDBY</span>
+          </div>
         </div>
       </div>
 
-      <!-- PANELL INTERACTIU D'AGENDA I TASQUES -->
+      <!-- PANELL INTERACTIU D'AGENDA I TASQUES (AMB MÀXIM ESPAI VERTICAL) -->
       <div class="panel widget-panel">
         <div class="widget-tabs">
           <button id="tab-btn-tasks" class="widget-tab active">
@@ -85,13 +99,22 @@
           <button id="tab-btn-agenda" class="widget-tab">
             AGENDA (<span id="agenda-count">0</span>)
           </button>
+          <button id="tab-btn-workflows" class="widget-tab" title="Automatitzacions i fluxos asíncrons">
+            FLUXOS (<span id="workflows-count">0</span>)
+          </button>
+          <button id="tab-btn-dual" class="widget-tab" title="Veure tasques i agenda alhora">
+            DUAL
+          </button>
         </div>
 
         <!-- VISTA DE TASQUES -->
         <div id="tasks-container" class="widget-view">
           <div class="widget-actions">
             <span class="widget-subtitle">Llista de feina</span>
-            <button id="btn-add-task-ui" class="btn-micro" title="Afegir tasca manual">+ Nova</button>
+            <div style="display:flex; gap:4px;">
+              <button id="btn-analyze-udg-ui" class="btn-micro" title="Comprovar correus de la UdG i afegir feina">🎓 UdG</button>
+              <button id="btn-add-task-ui" class="btn-micro" title="Afegir tasca manual">+ Nova</button>
+            </div>
           </div>
           <div id="tasks-list" class="widget-list">
             <div class="loading">Carregant tasques...</div>
@@ -102,10 +125,24 @@
         <div id="agenda-container" class="widget-view hidden">
           <div class="widget-actions">
             <span class="widget-subtitle" id="agenda-date-label">Pròximes Cites</span>
-            <button id="btn-add-event-ui" class="btn-micro" title="Afegir cita a l'agenda">+ Cita</button>
+            <div style="display:flex; gap:4px;">
+              <button id="btn-open-calendar-ui" class="btn-micro" title="Obrir vista de calendari interactiu">📅 Calendari</button>
+              <button id="btn-add-event-ui" class="btn-micro" title="Afegir cita a l'agenda">+ Cita</button>
+            </div>
           </div>
           <div id="agenda-list" class="widget-list">
             <div class="loading">Carregant agenda...</div>
+          </div>
+        </div>
+
+        <!-- VISTA DE FLUXOS ASÍNCRONS -->
+        <div id="workflows-container" class="widget-view hidden">
+          <div class="widget-actions">
+            <span class="widget-subtitle">Automatitzacions i Triggers</span>
+            <button id="btn-run-workflows-ui" class="btn-micro" title="Executar cicle de verificació">⟳ Comprovar</button>
+          </div>
+          <div id="workflows-list" class="widget-list">
+            <div class="loading">Carregant fluxos...</div>
           </div>
         </div>
       </div>
@@ -130,10 +167,13 @@
 
       <!-- BARRA D'ACCIONS RÀPIDES -->
       <div class="quick-actions-bar">
+        <button class="quick-chip" data-prompt="M.A.R.C., analitza els correus rebuts de la UdG i Moodle, i afegeix els terminis de treballs i tasques pertinents.">
+          🎓 Analitzar correus UdG
+        </button>
         <button class="quick-chip" data-prompt="M.A.R.C., genera el meu daily briefing complet d'avui.">
           ☀️ Daily Briefing
         </button>
-        <button class="quick-chip" data-prompt="Quines reunions i cites tinc a l'agenda per a avui i demà?">
+        <button class="quick-chip" data-prompt="Quines reunions, classes i cites tinc a l'agenda per a avui i demà?">
           📅 Consultar agenda
         </button>
         <button class="quick-chip" data-prompt="Quines són les tasques pendents més urgents?">
@@ -266,6 +306,258 @@
     </div>
   </div>
 
-  <script src="/static/app.js?v=3.5"></script>
+  <!-- MODAL CREACIÓ DE NOVA SESSIÓ -->
+  <div id="new-session-modal" class="modal-overlay hidden">
+    <div class="modal-window modal-small">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span class="diff-tag">SESSIÓ</span>
+          <span>Nova Sessió de Xat</span>
+        </div>
+        <button id="session-modal-close" class="close-x">&times;</button>
+      </div>
+      <form id="new-session-form" class="modal-body form-body">
+        <div class="form-group">
+          <label for="session-name-input">Identificador o Nom de la Sessió *</label>
+          <input type="text" id="session-name-input" required placeholder="Ex: projecte_tfg, udg_classes, personal">
+        </div>
+        <div class="modal-footer">
+          <button type="button" id="session-modal-cancel" class="btn-action btn-reject">✕ CANCEL·LAR</button>
+          <button type="submit" class="btn-action btn-approve">💾 INICIAR SESSIÓ</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL DETALL I EDICIÓ D'ACTIVITAT (TASCA O CITA) -->
+  <div id="activity-detail-modal" class="modal-overlay hidden">
+    <div class="modal-window modal-medium">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span id="activity-modal-badge" class="diff-tag">ACTIVITAT</span>
+          <span id="activity-modal-title-header">Detall d'activitat</span>
+        </div>
+        <button id="activity-modal-close" class="close-x">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="activity-view-mode">
+          <div class="detail-hero">
+            <h2 id="activity-detail-title" class="detail-title">Títol de l'activitat</h2>
+            <div id="activity-detail-meta" class="detail-meta-tags"></div>
+          </div>
+          <div class="detail-info-grid">
+            <div class="detail-info-item" id="activity-info-time-box">
+              <span class="detail-info-label">DATA I HORARI:</span>
+              <span id="activity-detail-time" class="detail-info-value">-</span>
+            </div>
+            <div class="detail-info-item" id="activity-info-loc-box">
+              <span class="detail-info-label">LLOC / CANAL:</span>
+              <span id="activity-detail-loc" class="detail-info-value">-</span>
+            </div>
+            <div class="detail-info-item" id="activity-info-status-box">
+              <span class="detail-info-label">ESTAT ACTUAL:</span>
+              <span id="activity-detail-status" class="detail-info-value">-</span>
+            </div>
+          </div>
+          <div class="detail-desc-box">
+            <span class="detail-info-label">DESCRIPCIÓ / DETALLS:</span>
+            <div id="activity-detail-desc" class="detail-desc-content">Sense descripció.</div>
+          </div>
+          <div class="modal-footer" style="margin-top:16px;">
+            <button type="button" id="btn-activity-delete" class="btn-action btn-reject">🗑️ ELIMINAR</button>
+            <div style="display:flex; gap:8px;">
+              <button type="button" id="btn-activity-toggle-done" class="btn-action btn-neutral">✓ CANVIAR ESTAT</button>
+              <button type="button" id="btn-activity-edit" class="btn-action btn-approve">✏️ MODIFICAR</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- FORMULARI D'EDICIÓ DINÀMIC -->
+        <form id="activity-edit-form" class="form-body hidden">
+          <div class="form-group">
+            <label for="edit-activity-title">Títol *</label>
+            <input type="text" id="edit-activity-title" required>
+          </div>
+          <div id="edit-event-fields">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="edit-event-start">Inici (YYYY-MM-DD HH:MM) *</label>
+                <input type="text" id="edit-event-start" placeholder="2026-10-25 10:00">
+              </div>
+              <div class="form-group">
+                <label for="edit-event-end">Fi (YYYY-MM-DD HH:MM)</label>
+                <input type="text" id="edit-event-end" placeholder="2026-10-25 11:00">
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="edit-event-loc">Lloc</label>
+              <input type="text" id="edit-event-loc">
+            </div>
+          </div>
+          <div id="edit-task-fields" class="hidden">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="edit-task-prio">Prioritat</label>
+                <select id="edit-task-prio">
+                  <option value="alta">🔴 Alta</option>
+                  <option value="mitjana">🟡 Mitjana</option>
+                  <option value="baixa">🟢 Baixa</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="edit-task-due">Data Límit</label>
+                <input type="date" id="edit-task-due">
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="edit-activity-desc">Descripció</label>
+            <textarea id="edit-activity-desc" rows="3"></textarea>
+          </div>
+          <div class="modal-footer">
+            <button type="button" id="btn-cancel-edit" class="btn-action btn-reject">✕ CANCEL·LAR</button>
+            <button type="submit" class="btn-action btn-approve">💾 DESAR CANVIS</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL VISTA DE CALENDARI COMPLET (ESTIL GOOGLE CALENDAR) -->
+  <div id="calendar-modal" class="modal-overlay hidden">
+    <div class="modal-window modal-large">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span class="diff-tag">AGENDA</span>
+          <span id="calendar-month-year-label">OCTUBRE 2026</span>
+        </div>
+        <div class="calendar-header-actions">
+          <button id="btn-cal-prev" class="btn-micro" title="Mes anterior">&lt;</button>
+          <button id="btn-cal-today" class="btn-micro" title="Anar a avui">AVUI</button>
+          <button id="btn-cal-next" class="btn-micro" title="Mes següent">&gt;</button>
+          <button id="btn-cal-add" class="btn-micro" style="color:var(--accent-cyan); border-color:var(--accent-cyan);" title="Afegir cita">+ Cita</button>
+          <button id="calendar-modal-close" class="close-x">&times;</button>
+        </div>
+      </div>
+      <div class="modal-body calendar-body">
+        <div class="calendar-legend">
+          <span class="legend-chip tag-personal">● Personal</span>
+          <span class="legend-chip tag-udg">● UdG / Classes</span>
+          <span class="legend-chip tag-f1">● Formula 1</span>
+          <span class="legend-chip tag-local">● Local</span>
+        </div>
+        <div class="calendar-weekdays">
+          <div>Dilluns</div><div>Dimarts</div><div>Dimecres</div><div>Dijous</div><div>Divendres</div><div>Dissabte</div><div>Diumenge</div>
+        </div>
+        <div id="calendar-grid" class="calendar-grid">
+          <!-- Els dies i esdeveniments es generen dinàmicament per JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DIAGRAMA D'ESTATS DE FLUXOS ASÍNCRONS -->
+  <div id="workflow-diagram-modal" class="modal-overlay hidden">
+    <div class="modal-window modal-large">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span class="diff-tag">STATE MACHINE</span>
+          <span id="wf-modal-title">Diagrama de Flux Asíncron</span>
+        </div>
+        <button id="wf-modal-close" class="close-x">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="diagram-hero">
+          <div id="wf-modal-subtitle" class="wf-flow-type-badge">Tipus: meeting_negotiation</div>
+          <p id="wf-modal-desc" class="wf-desc">Seguiment asíncron de la negociació amb bucle de disponibilitat.</p>
+        </div>
+
+        <!-- DIAGRAMA VISUAL INTERACTIU DE NODES D'ESTAT -->
+        <div class="state-machine-canvas">
+          <div class="state-node" id="node-start">
+            <div class="node-icon">📤</div>
+            <div class="node-title">1. Proposta Enviada</div>
+            <div class="node-sub">Acció d'inici / Correu</div>
+          </div>
+          <div class="state-connector">➜</div>
+          <div class="state-node" id="node-waiting">
+            <div class="node-icon">⏳</div>
+            <div class="node-title">2. Esperant Trigger</div>
+            <div class="node-sub">Resposta / Termini</div>
+          </div>
+          <div class="state-connector">➜</div>
+          <div class="state-node" id="node-eval">
+            <div class="node-icon">🧠</div>
+            <div class="node-title">3. Avaluació IA</div>
+            <div class="node-sub">Anàlisi de l'esdeveniment</div>
+          </div>
+        </div>
+
+        <!-- BRANQUES DE RESULTAT (ÈXIT VS BUCLE DE NEGOCIACIÓ) -->
+        <div class="branches-container">
+          <!-- BRANCA A: ÈXIT -->
+          <div class="branch-card branch-success">
+            <div class="branch-header">
+              <span class="branch-badge success">✓ BRANCA A: ACCEPTACIÓ</span>
+              <h4>Programació Automàtica</h4>
+            </div>
+            <div class="state-node-sub" id="node-success">
+              <div class="node-icon">📅</div>
+              <div>
+                <strong>Cita Agendada a Google Calendar</strong>
+                <p>Data i hora acordades registrades amb èxit.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- BRANCA B: CONTRAPROPOSTA / BUCLE DE NEGOCIACIÓ -->
+          <div class="branch-card branch-loop">
+            <div class="branch-header">
+              <span class="branch-badge loop">⟲ BRANCA B: BUCLE DE NEGOCIACIÓ</span>
+              <h4>Data Alternativa / Desacord</h4>
+            </div>
+            <div class="loop-flow">
+              <div class="state-node-sub" id="node-review">
+                <div class="node-icon">🔍</div>
+                <div>
+                  <strong>Revisió de Disponibilitat</strong>
+                  <p>S'alerta l'usuari i es consulta l'agenda.</p>
+                </div>
+              </div>
+              <div class="loop-arrow">➜</div>
+              <div class="state-node-sub" id="node-counter">
+                <div class="node-icon">✉️</div>
+                <div>
+                  <strong>Nova Contraproposta Redactada</strong>
+                  <p>Es renegocia fins a trobar acord.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SECCIÓ INTERACTIVA DE DECISIÓ (SI ESTÀ EN ESTAT D'ATENCIÓ) -->
+        <div id="wf-interactive-actions" class="wf-decision-box hidden">
+          <h4>⚡ ACCIÓ EXECUTIVA PER AL FLUX PENDENT:</h4>
+          <p id="wf-decision-message">L'altre contacte ha proposat una data alternativa. Com vols procedir?</p>
+          <div class="wf-decision-btns">
+            <button type="button" id="btn-wf-accept-alt" class="btn-action btn-approve">✓ ACCEPTAR DATA I AGENDAR</button>
+            <button type="button" id="btn-wf-propose-new" class="btn-action btn-neutral">✉️ ENVIAR CONTRAPROPOSTA</button>
+            <button type="button" id="btn-wf-cancel" class="btn-action btn-reject">✕ CANCEL·LAR FLUX</button>
+          </div>
+        </div>
+
+        <!-- HISTORIAL D'AUDITORIA / LOGS DEL FLUX -->
+        <div class="wf-logs-container">
+          <h4>// REGISTRE D'AUDITORIA (LOGS DEL FLUX):</h4>
+          <div id="wf-logs-list" class="wf-logs-list">
+            <div class="loading">Carregant historial del flux...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/app.js?v=5.0"></script>
 </body>
 </html>

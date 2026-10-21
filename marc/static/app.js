@@ -6,6 +6,7 @@ const btnRefresh = document.getElementById("btn-refresh");
 const btnNewSession = document.getElementById("btn-new-session");
 const sessionSelect = document.getElementById("session-select");
 const currentSessionLabel = document.getElementById("current-session-label");
+let currentSession = localStorage.getItem("marc_session") || "sessio_per_defecte";
 
 // BADGES D'ESTAT DE SERVEIS
 const statusBackend = document.getElementById("status-backend");
@@ -21,6 +22,8 @@ const btnSyncNow = document.getElementById("btn-sync-now");
 // ELEMENTS DEL WIDGET D'AGENDA I TASQUES
 const tabBtnTasks = document.getElementById("tab-btn-tasks");
 const tabBtnAgenda = document.getElementById("tab-btn-agenda");
+const tabBtnDual = document.getElementById("tab-btn-dual");
+const widgetPanel = document.querySelector(".widget-panel");
 const tasksContainer = document.getElementById("tasks-container");
 const agendaContainer = document.getElementById("agenda-container");
 const tasksList = document.getElementById("tasks-list");
@@ -30,63 +33,254 @@ const agendaCount = document.getElementById("agenda-count");
 const agendaDateLabel = document.getElementById("agenda-date-label");
 const btnAddTaskUi = document.getElementById("btn-add-task-ui");
 const btnAddEventUi = document.getElementById("btn-add-event-ui");
+const btnAnalyzeUdgUi = document.getElementById("btn-analyze-udg-ui");
+const tabBtnWorkflows = document.getElementById("tab-btn-workflows");
+const workflowsContainer = document.getElementById("workflows-container");
+const workflowsList = document.getElementById("workflows-list");
+const workflowsCount = document.getElementById("workflows-count");
+const btnRunWorkflowsUi = document.getElementById("btn-run-workflows-ui");
 
-// MODAL DE NOVA TASCA
+// MODAL HITL CONFIRMACIÓ D'ACCIONS
+const actionModal = document.getElementById("diff-modal");
+const modalSummary = document.getElementById("modal-summary");
+const actionDetails = document.getElementById("action-details");
+const modalApproveBtn = document.getElementById("modal-approve-btn");
+const modalRejectBtn = document.getElementById("modal-reject-btn");
+const modalCloseBtn = document.getElementById("modal-close-btn");
+let currentActiveAction = null;
+
+// MODAL CREACIÓ TASCA MANUAL
 const newTaskModal = document.getElementById("new-task-modal");
-const newTaskForm = document.getElementById("new-task-form");
-const taskModalCloseBtn = document.getElementById("task-modal-close-btn");
-const taskCancelBtn = document.getElementById("task-cancel-btn");
 const taskTitleInput = document.getElementById("task-title-input");
 const taskPrioInput = document.getElementById("task-prio-input");
 const taskDateInput = document.getElementById("task-date-input");
 const taskDescInput = document.getElementById("task-desc-input");
+const taskModalCloseBtn = document.getElementById("task-modal-close-btn");
+const taskCancelBtn = document.getElementById("task-cancel-btn");
+const newTaskForm = document.getElementById("new-task-form");
 
-// MODAL DE NOVA CITA D'AGENDA
+// MODAL CREACIÓ CITA MANUAL
 const newEventModal = document.getElementById("new-event-modal");
-const newEventForm = document.getElementById("new-event-form");
-const eventModalCloseBtn = document.getElementById("event-modal-close-btn");
-const eventCancelBtn = document.getElementById("event-cancel-btn");
 const eventTitleInput = document.getElementById("event-title-input");
 const eventDateInput = document.getElementById("event-date-input");
 const eventTimeInput = document.getElementById("event-time-input");
 const eventDurationInput = document.getElementById("event-duration-input");
 const eventLocInput = document.getElementById("event-loc-input");
+const eventModalCloseBtn = document.getElementById("event-modal-close-btn");
+const eventCancelBtn = document.getElementById("event-cancel-btn");
+const newEventForm = document.getElementById("new-event-form");
 
-// ELEMENTS MODAL ACCIONS (HITL)
-const actionModal = document.getElementById("diff-modal");
-const modalSummary = document.getElementById("modal-summary");
-const actionDetails = document.getElementById("action-details");
-const modalCloseBtn = document.getElementById("modal-close-btn");
-const modalApproveBtn = document.getElementById("modal-approve-btn");
-const modalRejectBtn = document.getElementById("modal-reject-btn");
+// MODAL CREACIÓ DE SESSIÓ
+const newSessionModal = document.getElementById("new-session-modal");
+const newSessionForm = document.getElementById("new-session-form");
+const sessionNameInput = document.getElementById("session-name-input");
+const sessionModalClose = document.getElementById("session-modal-close");
+const sessionModalCancel = document.getElementById("session-modal-cancel");
 
-// ESTAT GLOBAL
-let currentSession = "sessio_per_defecte";
-let currentActiveAction = null;
+// MODAL DETALL D'ACTIVITAT (TASCA / CITA)
+const activityDetailModal = document.getElementById("activity-detail-modal");
+const activityModalClose = document.getElementById("activity-modal-close");
+const activityModalBadge = document.getElementById("activity-modal-badge");
+const activityDetailTitle = document.getElementById("activity-detail-title");
+const activityDetailMeta = document.getElementById("activity-detail-meta");
+const activityDetailTime = document.getElementById("activity-detail-time");
+const activityDetailLoc = document.getElementById("activity-detail-loc");
+const activityDetailStatus = document.getElementById("activity-detail-status");
+const activityDetailDesc = document.getElementById("activity-detail-desc");
+const activityInfoTimeBox = document.getElementById("activity-info-time-box");
+const activityInfoLocBox = document.getElementById("activity-info-loc-box");
+const btnActivityDelete = document.getElementById("btn-activity-delete");
+const btnActivityToggleDone = document.getElementById("btn-activity-toggle-done");
+const btnActivityEdit = document.getElementById("btn-activity-edit");
+const activityViewMode = document.getElementById("activity-view-mode");
+const activityEditForm = document.getElementById("activity-edit-form");
+const editActivityTitle = document.getElementById("edit-activity-title");
+const editEventFields = document.getElementById("edit-event-fields");
+const editEventStart = document.getElementById("edit-event-start");
+const editEventEnd = document.getElementById("edit-event-end");
+const editEventLoc = document.getElementById("edit-event-loc");
+const editTaskFields = document.getElementById("edit-task-fields");
+const editTaskPrio = document.getElementById("edit-task-prio");
+const editTaskDue = document.getElementById("edit-task-due");
+const editActivityDesc = document.getElementById("edit-activity-desc");
+const btnCancelEdit = document.getElementById("btn-cancel-edit");
 
-// CONFIGURACIÓ DE MARKED & HIGHLIGHT.JS
-marked.setOptions({
-  highlight: function(code, lang) {
-    const language = hljs.getLanguage(lang) ? lang : 'plaintext';
-    return hljs.highlight(code, { language }).value;
-  },
-  breaks: true
-});
+// MODAL CALENDARI INTERACTIU
+const calendarModal = document.getElementById("calendar-modal");
+const btnOpenCalendarUi = document.getElementById("btn-open-calendar-ui");
+const calendarModalClose = document.getElementById("calendar-modal-close");
+const calendarGrid = document.getElementById("calendar-grid");
+const calendarMonthYearLabel = document.getElementById("calendar-month-year-label");
+const btnCalPrev = document.getElementById("btn-cal-prev");
+const btnCalToday = document.getElementById("btn-cal-today");
+const btnCalNext = document.getElementById("btn-cal-next");
+const btnCalAdd = document.getElementById("btn-cal-add");
 
-// PESTANYES DEL WIDGET (TASQUES / AGENDA)
+// MODAL DIAGRAMA DE FLUXOS ASÍNCRONS
+const workflowDiagramModal = document.getElementById("workflow-diagram-modal");
+const wfModalClose = document.getElementById("wf-modal-close");
+const wfModalTitle = document.getElementById("wf-modal-title");
+const wfModalSubtitle = document.getElementById("wf-modal-subtitle");
+const wfModalDesc = document.getElementById("wf-modal-desc");
+const nodeStart = document.getElementById("node-start");
+const nodeWaiting = document.getElementById("node-waiting");
+const nodeEval = document.getElementById("node-eval");
+const nodeSuccess = document.getElementById("node-success");
+const nodeReview = document.getElementById("node-review");
+const nodeCounter = document.getElementById("node-counter");
+const wfInteractiveActions = document.getElementById("wf-interactive-actions");
+const wfDecisionMessage = document.getElementById("wf-decision-message");
+const btnWfAcceptAlt = document.getElementById("btn-wf-accept-alt");
+const btnWfProposeNew = document.getElementById("btn-wf-propose-new");
+const btnWfCancel = document.getElementById("btn-wf-cancel");
+const wfLogsList = document.getElementById("wf-logs-list");
+
+// VARIABLES D'ESTAT INTERACTIU
+let currentSelectedActivity = null;
+let currentSelectedWorkflow = null;
+let calYear = new Date().getFullYear();
+let calMonth = new Date().getMonth();
+let allDashboardEvents = [];
+
+// SERVEIS ACTIUS (COLLAPSIBLE HUD)
+const servicesHeader = document.getElementById("services-header");
+const servicesGrid = document.getElementById("services-grid");
+const servicesToggleIcon = document.getElementById("services-toggle-icon");
+const servicesSummaryPill = document.getElementById("services-summary-pill");
+
+if (servicesHeader && servicesGrid) {
+  servicesHeader.addEventListener("click", (e) => {
+    if (e.target.tagName === "BUTTON") return;
+    const isCollapsed = servicesGrid.classList.toggle("collapsed");
+    if (servicesToggleIcon) servicesToggleIcon.classList.toggle("collapsed", isCollapsed);
+    localStorage.setItem("marc_services_collapsed", isCollapsed ? "1" : "0");
+  });
+
+  if (localStorage.getItem("marc_services_collapsed") === "1") {
+    servicesGrid.classList.add("collapsed");
+    if (servicesToggleIcon) servicesToggleIcon.classList.add("collapsed");
+  }
+}
+
+// BOTÓ D'ANÀLISI DE CORREUS UDG
+if (btnAnalyzeUdgUi) {
+  btnAnalyzeUdgUi.addEventListener("click", async () => {
+    btnAnalyzeUdgUi.disabled = true;
+    btnAnalyzeUdgUi.textContent = "⏳...";
+    try {
+      const res = await fetch("/api/udg/analyze");
+      const data = await res.json();
+      if (data.processed_count > 0) {
+        appendMessage("assistant", `🎓 **Anàlisi UdG completada:**\n${data.message}`);
+      } else {
+        appendMessage("assistant", "🎓 Tot al dia! No hi ha correus nous de la UdG pendents d'analitzar.");
+      }
+      await fetchDashboard();
+    } catch (err) {
+      console.error("Error analitzant correus UdG:", err);
+    } finally {
+      btnAnalyzeUdgUi.disabled = false;
+      btnAnalyzeUdgUi.textContent = "🎓 UdG";
+    }
+  });
+}
+
+// PESTANYES DEL WIDGET (TASQUES / AGENDA / FLUXOS / DUAL)
 tabBtnTasks.addEventListener("click", () => {
   tabBtnTasks.classList.add("active");
   tabBtnAgenda.classList.remove("active");
+  if (tabBtnWorkflows) tabBtnWorkflows.classList.remove("active");
+  if (tabBtnDual) tabBtnDual.classList.remove("active");
+  if (widgetPanel) widgetPanel.classList.remove("dual-mode");
   tasksContainer.classList.remove("hidden");
   agendaContainer.classList.add("hidden");
+  if (workflowsContainer) workflowsContainer.classList.add("hidden");
 });
 
 tabBtnAgenda.addEventListener("click", () => {
   tabBtnAgenda.classList.add("active");
   tabBtnTasks.classList.remove("active");
+  if (tabBtnWorkflows) tabBtnWorkflows.classList.remove("active");
+  if (tabBtnDual) tabBtnDual.classList.remove("active");
+  if (widgetPanel) widgetPanel.classList.remove("dual-mode");
   agendaContainer.classList.remove("hidden");
   tasksContainer.classList.add("hidden");
+  if (workflowsContainer) workflowsContainer.classList.add("hidden");
 });
+
+if (tabBtnWorkflows) {
+  tabBtnWorkflows.addEventListener("click", () => {
+    tabBtnWorkflows.classList.add("active");
+    tabBtnTasks.classList.remove("active");
+    tabBtnAgenda.classList.remove("active");
+    if (tabBtnDual) tabBtnDual.classList.remove("active");
+    if (widgetPanel) widgetPanel.classList.remove("dual-mode");
+    if (workflowsContainer) workflowsContainer.classList.remove("hidden");
+    tasksContainer.classList.add("hidden");
+    agendaContainer.classList.add("hidden");
+  });
+}
+
+if (tabBtnDual) {
+  tabBtnDual.addEventListener("click", () => {
+    tabBtnDual.classList.add("active");
+    tabBtnTasks.classList.remove("active");
+    tabBtnAgenda.classList.remove("active");
+    if (tabBtnWorkflows) tabBtnWorkflows.classList.remove("active");
+    if (widgetPanel) widgetPanel.classList.add("dual-mode");
+    tasksContainer.classList.remove("hidden");
+    agendaContainer.classList.remove("hidden");
+    if (workflowsContainer) workflowsContainer.classList.add("hidden");
+  });
+}
+
+if (btnRunWorkflowsUi) {
+  btnRunWorkflowsUi.addEventListener("click", async () => {
+    btnRunWorkflowsUi.disabled = true;
+    btnRunWorkflowsUi.textContent = "⏳...";
+    try {
+      const res = await fetch("/api/workflows/run", { method: "POST" });
+      const data = await res.json();
+      if (data.total_triggered > 0) {
+        appendMessage("assistant", `🤖 **Automatitzacions:** ${data.message}`);
+      }
+      await fetchDashboard();
+    } catch (err) {
+      console.error("Error executant cicle de fluxos:", err);
+    } finally {
+      btnRunWorkflowsUi.disabled = false;
+      btnRunWorkflowsUi.textContent = "⟳ Comprovar";
+    }
+  });
+}
+
+// HELPER PER A ACTUALITZAR BADGES DE SERVEIS
+function updateServiceBadge(badgeEl, statusVal) {
+  if (!badgeEl) return;
+  const val = (statusVal || "ONLINE").toUpperCase();
+  badgeEl.textContent = val;
+  let statusClass = "";
+  if (val === "OFFLINE" || val === "ERROR") {
+    statusClass = "offline";
+  } else if (val === "STANDBY" || val.includes("CHECK")) {
+    statusClass = "standby";
+  }
+  badgeEl.className = `chip-val badge ${statusClass}`.trim();
+}
+
+// HELPER PER A ACTUALITZAR PUNTS GLOWING DELS SERVEIS
+function updateDot(dotId, statusVal) {
+  const dot = document.getElementById(dotId);
+  if (!dot) return;
+  const val = (statusVal || "").toUpperCase();
+  if (val === "OFFLINE" || val === "ERROR") {
+    dot.className = "chip-dot offline";
+  } else if (val === "STANDBY" || val.includes("CHECK")) {
+    dot.className = "chip-dot standby";
+  } else {
+    dot.className = "chip-dot";
+  }
+}
 
 // CONSULTAR ESTAT DEL SISTEMA I SESSIONS
 async function fetchSystemStatus() {
@@ -96,22 +290,33 @@ async function fetchSystemStatus() {
     const data = await res.json();
 
     if (data.services) {
-      if (statusBackend) statusBackend.textContent = data.services.backend || "ONLINE";
-      if (statusDb) statusDb.textContent = data.services.database || "ONLINE";
-      if (statusNetwork) {
-        statusNetwork.textContent = data.services.internet || "ONLINE";
-        statusNetwork.className = `badge ${data.services.internet === "OFFLINE" ? "offline" : ""}`;
-      }
-      if (statusCalendar) statusCalendar.textContent = data.services.calendar || "LOCAL_DB";
-      if (statusEmail) statusEmail.textContent = data.services.email_hub || "LOCAL_HUB";
-      if (statusSpotify) statusSpotify.textContent = data.services.spotify || "NATIVE_APP";
-      if (statusSearxng) {
-        statusSearxng.textContent = data.services.searxng;
-        statusSearxng.className = `badge ${data.services.searxng === "OFFLINE" ? "offline" : ""}`;
-      }
-      if (statusTelegram) {
-        statusTelegram.textContent = data.services.telegram;
-        statusTelegram.className = `badge ${data.services.telegram === "STANDBY" ? "standby" : ""}`;
+      updateServiceBadge(statusBackend, data.services.backend);
+      updateServiceBadge(statusDb, data.services.database);
+      updateServiceBadge(statusNetwork, data.services.internet);
+      updateServiceBadge(statusCalendar, data.services.calendar);
+      updateServiceBadge(statusEmail, data.services.email_hub);
+      updateServiceBadge(statusSpotify, data.services.spotify);
+      updateServiceBadge(statusSearxng, data.services.searxng);
+      updateServiceBadge(statusTelegram, data.services.telegram);
+
+      // Actualització dels punts lluminosos HUD
+      updateDot("dot-network", data.services.internet);
+      updateDot("dot-backend", data.services.backend);
+      updateDot("dot-db", data.services.database);
+      updateDot("dot-calendar", data.services.calendar);
+      updateDot("dot-email", data.services.email_hub);
+      updateDot("dot-spotify", data.services.spotify);
+      updateDot("dot-searxng", data.services.searxng);
+      updateDot("dot-telegram", data.services.telegram);
+
+      if (servicesSummaryPill) {
+        if (data.services.internet === "OFFLINE") {
+          servicesSummaryPill.textContent = "OFFLINE";
+          servicesSummaryPill.className = "summary-pill warn";
+        } else {
+          servicesSummaryPill.textContent = "ONLINE";
+          servicesSummaryPill.className = "summary-pill online";
+        }
       }
     }
 
@@ -125,105 +330,247 @@ async function fetchSystemStatus() {
           sessionSelect.appendChild(opt);
         }
       });
+
+      const savedSession = localStorage.getItem("marc_session");
+      if (savedSession && Array.from(sessionSelect.options).some(o => o.value === savedSession)) {
+        sessionSelect.value = savedSession;
+        currentSession = savedSession;
+        currentSessionLabel.textContent = currentSession;
+      }
     }
   } catch (err) {
     console.error("Error carregant estat del sistema:", err);
   }
 }
 
-// CONSULTAR I PINTAR DASHBOARD (TASQUES I TOTES LES CITES DE L'AGENDA)
-async function fetchDashboard() {
+// HELPER: CREAR ELEMENT DE CITA D'AGENDA
+function createAgendaItemElement(ev, avuiStr, demaStr) {
+  const evItem = document.createElement("div");
+  evItem.className = "agenda-item clickable-card";
+  evItem.setAttribute("title", "Fes clic per veure o modificar aquesta cita");
+
+  let dataPart = "";
+  let horaPart = ev.start_time;
+
+  if (ev.start_time && ev.start_time.includes(" ")) {
+    const parts = ev.start_time.split(" ");
+    const rawDate = parts[0];
+    const rawTime = parts[1];
+
+    if (rawDate === avuiStr) {
+      dataPart = "Avui · ";
+    } else if (rawDate === demaStr) {
+      dataPart = "Demà · ";
+    } else {
+      const dateSplits = rawDate.split("-");
+      dataPart = (dateSplits.length === 3 ? `${dateSplits[2]}/${dateSplits[1]} · ` : `${rawDate} · `);
+    }
+    horaPart = rawTime;
+  }
+
+  const horaFi = (ev.end_time && ev.end_time.includes(" ")) ? ` - ${ev.end_time.split(" ")[1]}` : "";
+
+  let displayTitle = ev.title || "(Sense títol)";
+  let tagBadgeHtml = "";
+
+  if (ev.tag) {
+    const rawTag = ev.tag.replace(/[\[\]]/g, "");
+    const tagClass = rawTag.toLowerCase().replace(/[^a-z0-9]/g, "-");
+    tagBadgeHtml = `<span class="cal-badge tag-${tagClass}">${rawTag}</span>`;
+    if (displayTitle.startsWith(ev.tag)) {
+      displayTitle = displayTitle.substring(ev.tag.length).trim();
+    }
+  }
+
+  evItem.innerHTML = `
+    <div class="agenda-time">🕒 ${dataPart}${horaPart}${horaFi}</div>
+    <div class="agenda-title">${tagBadgeHtml}${displayTitle}</div>
+    ${ev.location ? `<div class="agenda-location">📍 ${ev.location}</div>` : ""}
+  `;
+
+  evItem.addEventListener("click", () => {
+    openActivityDetailModal("event", ev);
+  });
+
+  return evItem;
+}
+
+// RENDERITZAR LLISTA D'AGENDA (AMB SUPORT DE PAGINACIÓ)
+function renderAgendaList(events, totalEvents, allEvents) {
+  if (events.length === 0) {
+    agendaList.innerHTML = `<div class="empty-state">Sense cites a l'agenda. Clica a '+ Cita' per afegir-ne!</div>`;
+    return;
+  }
+
+  agendaList.innerHTML = "";
+
+  const ara = new Date();
+  const avuiStr = ara.toISOString().split("T")[0];
+  const dema = new Date();
+  dema.setDate(dema.getDate() + 1);
+  const demaStr = dema.toISOString().split("T")[0];
+
+  events.forEach(ev => {
+    const evItem = createAgendaItemElement(ev, avuiStr, demaStr);
+    agendaList.appendChild(evItem);
+  });
+
+  // Si hi ha més cites que les mostrades inicialment, botó per desplegar-les
+  if (totalEvents > events.length) {
+    const loadMoreBtn = document.createElement("button");
+    loadMoreBtn.className = "btn-load-more";
+    loadMoreBtn.textContent = `+ MOSTRAR TOTS ELS ESDEVENIMENTS (${events.length} de ${totalEvents})`;
+    loadMoreBtn.addEventListener("click", () => {
+      renderAgendaList(allEvents, totalEvents, allEvents);
+    });
+    agendaList.appendChild(loadMoreBtn);
+  }
+}
+
+// RENDERITZAR LLISTA DE TASQUES
+function renderTasksList(tasks, totalTasks, allTasks) {
+  if (tasks.length === 0) {
+    tasksList.innerHTML = `<div class="empty-state">No hi ha cap tasca. Fes clic a '+ Nova' per afegir-ne una!</div>`;
+    return;
+  }
+
+  tasksList.innerHTML = "";
+  tasks.forEach(t => {
+    const item = document.createElement("div");
+    item.className = "task-item";
+
+    const isDone = (t.status === "completada");
+    const prioClass = (t.priority || "mitjana").toLowerCase();
+
+    item.innerHTML = `
+      <input type="checkbox" class="task-checkbox" ${isDone ? "checked" : ""} data-id="${t.id}" title="Completar o reobrir">
+      <div class="task-content clickable-card" title="Fes clic per veure o editar la tasca">
+        <span class="task-title ${isDone ? "completed" : ""}">${t.title}</span>
+        <div class="task-meta">
+          <span class="prio-badge ${prioClass}">${(t.priority || "mitjana").toUpperCase()}</span>
+          ${t.due_date ? `<span class="task-due">📅 ${t.due_date}</span>` : ""}
+        </div>
+      </div>
+    `;
+
+    const chk = item.querySelector(".task-checkbox");
+    chk.addEventListener("change", async (e) => {
+      e.stopPropagation();
+      await toggleTask(t.id);
+    });
+
+    const contentDiv = item.querySelector(".task-content");
+    contentDiv.addEventListener("click", () => {
+      openActivityDetailModal("task", t);
+    });
+
+    tasksList.appendChild(item);
+  });
+
+  if (totalTasks > tasks.length) {
+    const loadMoreBtn = document.createElement("button");
+    loadMoreBtn.className = "btn-load-more";
+    loadMoreBtn.textContent = `+ MOSTRAR TOTES LES TASQUES (${tasks.length} de ${totalTasks})`;
+    loadMoreBtn.addEventListener("click", () => {
+      renderTasksList(allTasks, totalTasks, allTasks);
+    });
+    tasksList.appendChild(loadMoreBtn);
+  }
+}
+
+// RENDERITZAR LLISTA DE FLUXOS ASÍNCRONS (AUTOMATITZACIONS)
+function renderWorkflowsList(workflows) {
+  if (!workflowsList) return;
+  if (!workflows || workflows.length === 0) {
+    workflowsList.innerHTML = `<div class="empty-state">No hi ha cap flux asíncron actiu. L'agent en crearà automàticament quan demanis una acció que requereixi esperar resposta o un termini!</div>`;
+    return;
+  }
+
+  workflowsList.innerHTML = "";
+  workflows.forEach(wf => {
+    const item = document.createElement("div");
+    item.className = "task-item clickable-card";
+    item.setAttribute("title", "Fes clic per veure el diagrama interactiu d'aquest flux");
+    
+    let statusClass = "mitjana";
+    let statusText = (wf.status || "pending").toUpperCase();
+    if (wf.status === "completed") {
+      statusClass = "baixa";
+      statusText = "COMPLETAT";
+    } else if (wf.status === "pending") {
+      statusClass = "alta";
+      statusText = "ESPERANT";
+    } else if (wf.status === "waiting_user_review") {
+      statusClass = "alta";
+      statusText = "ATENCIÓ";
+    }
+
+    const cond = wf.trigger_condition || {};
+    const triggerInfo = wf.trigger_type === "email_reply" 
+      ? `📩 Espera correu: ${cond.sender || 'contacte'}`
+      : `⏰ Data/Hora límit: ${cond.target_datetime || ''}`;
+
+    item.innerHTML = `
+      <div class="task-content" style="width:100%;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span class="task-title" style="font-weight:600;">${wf.title}</span>
+          <span class="prio-badge ${statusClass}">${statusText}</span>
+        </div>
+        <div class="task-meta" style="margin-top:4px;">
+          <span>${triggerInfo}</span>
+          <span style="opacity:0.6;">Tipus: ${wf.workflow_type}</span>
+        </div>
+        ${wf.result_summary ? `<div style="font-size:0.75rem; color:var(--text-accent); margin-top:4px;">✓ ${wf.result_summary}</div>` : ""}
+      </div>
+    `;
+
+    item.addEventListener("click", () => {
+      openWorkflowDiagramModal(wf);
+    });
+
+    workflowsList.appendChild(item);
+  });
+}
+
+// CONSULTAR I PINTAR DASHBOARD (AMB CAU D'ALTA VELOCITAT I PAGINACIÓ)
+async function fetchDashboard(forceRefresh = false) {
   try {
-    const res = await fetch("/api/dashboard");
+    const url = `/api/dashboard?limit_agenda=15&limit_tasks=15${forceRefresh ? '&force_refresh=true' : ''}`;
+    const res = await fetch(url);
     if (!res.ok) return;
     const data = await res.json();
 
-    // 1. RENDERITZAR TASQUES
+    // 1. TASQUES
     const tasks = data.tasks || [];
-    const pendingTasks = tasks.filter(t => t.status === "pendent");
-    taskCount.textContent = pendingTasks.length;
+    const allTasks = data.all_tasks || tasks;
+    const totalTasks = data.total_tasks || tasks.length;
+    const pendingCount = (data.stats && data.stats.pending_tasks !== undefined) 
+      ? data.stats.pending_tasks 
+      : tasks.filter(t => t.status === "pendent").length;
+    taskCount.textContent = pendingCount;
+    renderTasksList(tasks, totalTasks, allTasks);
 
-    if (tasks.length === 0) {
-      tasksList.innerHTML = `<div class="empty-state">No hi ha cap tasca. Fes clic a '+ Nova' per afegir-ne una!</div>`;
-    } else {
-      tasksList.innerHTML = "";
-      tasks.forEach(t => {
-        const item = document.createElement("div");
-        item.className = "task-item";
-
-        const isDone = (t.status === "completada");
-        const prioClass = (t.priority || "mitjana").toLowerCase();
-
-        item.innerHTML = `
-          <input type="checkbox" class="task-checkbox" ${isDone ? "checked" : ""} data-id="${t.id}">
-          <div class="task-content">
-            <span class="task-title ${isDone ? "completed" : ""}">${t.title}</span>
-            <div class="task-meta">
-              <span class="prio-badge ${prioClass}">${(t.priority || "mitjana").toUpperCase()}</span>
-              ${t.due_date ? `<span class="task-due">📅 ${t.due_date}</span>` : ""}
-            </div>
-          </div>
-        `;
-
-        const chk = item.querySelector(".task-checkbox");
-        chk.addEventListener("change", async () => {
-          await toggleTask(t.id);
-        });
-
-        tasksList.appendChild(item);
-      });
-    }
-
-    // 2. RENDERITZAR AGENDA (AMB SUPORT PER A TOTES LES CITES PROPERES)
+    // 2. AGENDA
     const events = data.events || [];
-    agendaCount.textContent = events.length;
-    agendaDateLabel.textContent = `Pròximes Cites (${events.length})`;
+    const allEvents = data.all_events || events;
+    allDashboardEvents = allEvents; // Guardem en memòria per al calendari interactiu
+    const totalEvents = data.total_events || events.length;
+    agendaCount.textContent = totalEvents;
+    agendaDateLabel.textContent = `Pròximes Cites (${totalEvents})`;
+    renderAgendaList(events, totalEvents, allEvents);
 
-    if (events.length === 0) {
-      agendaList.innerHTML = `<div class="empty-state">Sense cites a l'agenda. Clica a '+ Cita' per afegir-ne!</div>`;
-    } else {
-      agendaList.innerHTML = "";
-
-      // Obtenim dates de referència per a mostrar 'Avui', 'Demà', etc.
-      const ara = new Date();
-      const avuiStr = ara.toISOString().split("T")[0];
-      const dema = new Date();
-      dema.setDate(dema.getDate() + 1);
-      const demaStr = dema.toISOString().split("T")[0];
-
-      events.forEach(ev => {
-        const evItem = document.createElement("div");
-        evItem.className = "agenda-item";
-
-        let dataPart = "";
-        let horaPart = ev.start_time;
-
-        if (ev.start_time && ev.start_time.includes(" ")) {
-          const parts = ev.start_time.split(" ");
-          const rawDate = parts[0];
-          const rawTime = parts[1];
-
-          if (rawDate === avuiStr) {
-            dataPart = "Avui · ";
-          } else if (rawDate === demaStr) {
-            dataPart = "Demà · ";
-          } else {
-            const dateSplits = rawDate.split("-");
-            dataPart = (dateSplits.length === 3 ? `${dateSplits[2]}/${dateSplits[1]} · ` : `${rawDate} · `);
-          }
-          horaPart = rawTime;
-        }
-
-        const horaFi = (ev.end_time && ev.end_time.includes(" ")) ? ` - ${ev.end_time.split(" ")[1]}` : "";
-
-        evItem.innerHTML = `
-          <div class="agenda-time">🕒 ${dataPart}${horaPart}${horaFi}</div>
-          <div class="agenda-title">${ev.title}</div>
-          ${ev.location ? `<div class="agenda-location">📍 ${ev.location}</div>` : ""}
-        `;
-        agendaList.appendChild(evItem);
-      });
+    // Si el calendari interactiu està obert, refrescar-ne la vista
+    if (calendarModal && !calendarModal.classList.contains("hidden")) {
+      renderInteractiveCalendar();
     }
+
+    // 3. FLUXOS ASÍNCRONS
+    const workflows = data.workflows || [];
+    const activeWfCount = data.active_workflows_count !== undefined 
+      ? data.active_workflows_count 
+      : workflows.filter(w => w.status === "pending").length;
+    if (workflowsCount) workflowsCount.textContent = activeWfCount;
+    renderWorkflowsList(workflows);
 
   } catch (err) {
     console.error("Error carregant el dashboard:", err);
@@ -548,29 +895,613 @@ chatForm.addEventListener("submit", (e) => {
   enviarMissatgeXat(userInput.value.trim());
 });
 
+// FUNCIO PER CARREGAR L'HISTORIAL PERSISTENT DE LA SESSIÓ
+async function loadSessionHistory(sessionId) {
+  if (!sessionId) return;
+  try {
+    const res = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}/messages`);
+    if (!res.ok) return;
+    const messages = await res.json();
+    chatMessages.innerHTML = "";
+    if (!messages || messages.length === 0) {
+      appendMessage(
+        "M.A.R.C.",
+        "Hola! Sóc en **M.A.R.C.**, el teu secretari executiu i assistent personal autònom.\n\nEstic preparat per coordinar la teva agenda, tasques, correus i música. Com et puc ajudar?"
+      );
+    } else {
+      messages.forEach(m => {
+        const isUser = (m.sender || "").toLowerCase() === "user";
+        appendMessage(isUser ? "USER" : "M.A.R.C.", m.message, isUser);
+      });
+    }
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  } catch (err) {
+    console.error("Error carregant l'historial de la sessió:", err);
+  }
+}
+
 // CANVI I CREACIÓ DE SESSIONS
-sessionSelect.addEventListener("change", (e) => {
+sessionSelect.addEventListener("change", async (e) => {
   currentSession = e.target.value;
-  currentSessionLabel.textContent = currentSession;
-  chatMessages.innerHTML = "";
-  appendMessage("M.A.R.C.", `Has canviat a la sessió **${currentSession}**.`);
+  localStorage.setItem("marc_session", currentSession);
+  if (currentSessionLabel) currentSessionLabel.textContent = currentSession;
+  await loadSessionHistory(currentSession);
 });
 
-btnNewSession.addEventListener("click", () => {
-  const nom = prompt("Nom de la nova sessió:");
-  if (nom && nom.trim()) {
-    const cleanNom = nom.trim().replace(/\s+/g, "_");
-    const opt = document.createElement("option");
-    opt.value = cleanNom;
-    opt.textContent = cleanNom;
-    sessionSelect.appendChild(opt);
-    sessionSelect.value = cleanNom;
-    currentSession = cleanNom;
-    currentSessionLabel.textContent = currentSession;
-    chatMessages.innerHTML = "";
-    appendMessage("M.A.R.C.", `Nova sessió **${cleanNom}** iniciada.`);
+// --- SISTEMA DE GESTIÓ DE SESSIONS (MODAL NOU) ---
+if (btnNewSession) {
+  btnNewSession.addEventListener("click", () => {
+    if (sessionNameInput) sessionNameInput.value = "";
+    if (newSessionModal) {
+      newSessionModal.classList.remove("hidden");
+      if (sessionNameInput) sessionNameInput.focus();
+    }
+  });
+}
+
+if (sessionModalClose) {
+  sessionModalClose.addEventListener("click", () => {
+    if (newSessionModal) newSessionModal.classList.add("hidden");
+  });
+}
+
+if (sessionModalCancel) {
+  sessionModalCancel.addEventListener("click", () => {
+    if (newSessionModal) newSessionModal.classList.add("hidden");
+  });
+}
+
+if (newSessionForm) {
+  newSessionForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const nom = sessionNameInput.value.trim();
+    if (nom) {
+      const cleanNom = nom.replace(/\s+/g, "_");
+      if (!Array.from(sessionSelect.options).some(o => o.value === cleanNom)) {
+        const opt = document.createElement("option");
+        opt.value = cleanNom;
+        opt.textContent = cleanNom;
+        sessionSelect.appendChild(opt);
+      }
+      sessionSelect.value = cleanNom;
+      currentSession = cleanNom;
+      localStorage.setItem("marc_session", currentSession);
+      if (currentSessionLabel) currentSessionLabel.textContent = currentSession;
+      newSessionModal.classList.add("hidden");
+      await loadSessionHistory(cleanNom);
+    }
+  });
+}
+
+// --- SISTEMA DE DETALL D'ACTIVITAT (TASCA / CITA) ---
+function openActivityDetailModal(type, itemData) {
+  currentSelectedActivity = { type, data: itemData };
+  if (!activityDetailModal) return;
+
+  // Mode visualització per defecte
+  if (activityViewMode) activityViewMode.classList.remove("hidden");
+  if (activityEditForm) activityEditForm.classList.add("hidden");
+
+  if (type === "event") {
+    let rawTag = itemData.tag ? itemData.tag.replace(/[\[\]]/g, "") : "CITA";
+    let tagClass = rawTag.toLowerCase().replace(/[^a-z0-9]/g, "-");
+    if (activityModalBadge) {
+      activityModalBadge.textContent = rawTag;
+      activityModalBadge.className = `diff-tag cal-badge tag-${tagClass}`;
+    }
+    let displayTitle = itemData.title || "(Sense títol)";
+    if (itemData.tag && displayTitle.startsWith(itemData.tag)) {
+      displayTitle = displayTitle.substring(itemData.tag.length).trim();
+    }
+    if (activityDetailTitle) activityDetailTitle.textContent = displayTitle;
+    if (activityDetailMeta) {
+      activityDetailMeta.textContent = itemData.calendar_id 
+        ? `Calendari: ${itemData.calendar_id}` 
+        : (itemData.synced ? "Sincronitzat amb Google Calendar" : "Calendari Local");
+    }
+
+    if (activityInfoTimeBox) activityInfoTimeBox.classList.remove("hidden");
+    if (activityDetailTime) {
+      activityDetailTime.textContent = `${itemData.start_time || 'N/A'}${itemData.end_time ? ' - ' + itemData.end_time : ''}`;
+    }
+
+    if (activityInfoLocBox) {
+      activityInfoLocBox.classList.toggle("hidden", !itemData.location);
+    }
+    if (activityDetailLoc) activityDetailLoc.textContent = itemData.location || "Sense ubicació";
+
+    if (activityDetailStatus) {
+      activityDetailStatus.textContent = itemData.synced ? "✓ Connectat a Google Calendar" : "💾 Base de Dades Local";
+    }
+
+    if (activityDetailDesc) {
+      activityDetailDesc.textContent = itemData.description || "Sense descripció addicional.";
+    }
+
+    if (btnActivityToggleDone) btnActivityToggleDone.classList.add("hidden");
+
+    // Preparar formulari d'edició
+    if (editEventFields) editEventFields.classList.remove("hidden");
+    if (editTaskFields) editTaskFields.classList.add("hidden");
+    if (editActivityTitle) editActivityTitle.value = itemData.title || "";
+    if (editEventStart) editEventStart.value = (itemData.start_time || "").replace(" (Tot el dia)", "");
+    if (editEventEnd) editEventEnd.value = (itemData.end_time || "").replace(" (Tot el dia)", "");
+    if (editEventLoc) editEventLoc.value = itemData.location || "";
+    if (editActivityDesc) editActivityDesc.value = itemData.description || "";
+
+  } else if (type === "task") {
+    const prio = (itemData.priority || "mitjana").toLowerCase();
+    if (activityModalBadge) {
+      activityModalBadge.textContent = `TASCA [${prio.toUpperCase()}]`;
+      activityModalBadge.className = `diff-tag prio-badge ${prio}`;
+    }
+    if (activityDetailTitle) activityDetailTitle.textContent = itemData.title || "(Sense títol)";
+    if (activityDetailMeta) activityDetailMeta.textContent = `Identificador: #${itemData.id}`;
+
+    if (activityInfoTimeBox) activityInfoTimeBox.classList.toggle("hidden", !itemData.due_date);
+    if (activityDetailTime) activityDetailTime.textContent = itemData.due_date ? `Data límit: ${itemData.due_date}` : "Sense data límit";
+
+    if (activityInfoLocBox) activityInfoLocBox.classList.add("hidden");
+
+    if (activityDetailStatus) {
+      activityDetailStatus.textContent = (itemData.status === "completada") ? "🟢 Completada" : "⏳ Pendent";
+    }
+
+    if (activityDetailDesc) {
+      activityDetailDesc.textContent = itemData.description || "Sense descripció addicional.";
+    }
+
+    if (btnActivityToggleDone) {
+      btnActivityToggleDone.classList.remove("hidden");
+      btnActivityToggleDone.textContent = (itemData.status === "completada") ? "↩ Reobrir Tasca" : "✓ Marcar Completada";
+    }
+
+    // Preparar formulari d'edició
+    if (editEventFields) editEventFields.classList.add("hidden");
+    if (editTaskFields) editTaskFields.classList.remove("hidden");
+    if (editActivityTitle) editActivityTitle.value = itemData.title || "";
+    if (editTaskPrio) editTaskPrio.value = prio;
+    if (editTaskDue) editTaskDue.value = itemData.due_date || "";
+    if (editActivityDesc) editActivityDesc.value = itemData.description || "";
   }
-});
+
+  activityDetailModal.classList.remove("hidden");
+}
+
+if (activityModalClose) {
+  activityModalClose.addEventListener("click", () => {
+    activityDetailModal.classList.add("hidden");
+    currentSelectedActivity = null;
+  });
+}
+
+if (btnActivityEdit) {
+  btnActivityEdit.addEventListener("click", () => {
+    if (activityViewMode) activityViewMode.classList.add("hidden");
+    if (activityEditForm) activityEditForm.classList.remove("hidden");
+  });
+}
+
+if (btnCancelEdit) {
+  btnCancelEdit.addEventListener("click", () => {
+    if (activityViewMode) activityViewMode.classList.remove("hidden");
+    if (activityEditForm) activityEditForm.classList.add("hidden");
+  });
+}
+
+if (btnActivityToggleDone) {
+  btnActivityToggleDone.addEventListener("click", async () => {
+    if (!currentSelectedActivity || currentSelectedActivity.type !== "task") return;
+    const taskId = currentSelectedActivity.data.id;
+    await toggleTask(taskId);
+    activityDetailModal.classList.add("hidden");
+  });
+}
+
+if (btnActivityDelete) {
+  btnActivityDelete.addEventListener("click", async () => {
+    if (!currentSelectedActivity) return;
+    const isTask = (currentSelectedActivity.type === "task");
+    const confirmMsg = isTask 
+      ? `Segur que vols eliminar la tasca "${currentSelectedActivity.data.title}"?`
+      : `Segur que vols eliminar l'esdeveniment "${currentSelectedActivity.data.title}" del calendari?`;
+    
+    if (!confirm(confirmMsg)) return;
+
+    try {
+      if (isTask) {
+        await fetch("/api/tasks/delete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ task_id: currentSelectedActivity.data.id })
+        });
+      } else {
+        await fetch("/api/events/delete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            event_id: currentSelectedActivity.data.id,
+            calendar_id: currentSelectedActivity.data.calendar_id || "primary"
+          })
+        });
+      }
+      activityDetailModal.classList.add("hidden");
+      await fetchDashboard(true);
+    } catch (err) {
+      alert("Error eliminant l'activitat: " + err.message);
+    }
+  });
+}
+
+if (activityEditForm) {
+  activityEditForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!currentSelectedActivity) return;
+
+    try {
+      if (currentSelectedActivity.type === "task") {
+        await fetch("/api/tasks/update", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            task_id: currentSelectedActivity.data.id,
+            title: editActivityTitle.value.trim(),
+            priority: editTaskPrio.value,
+            due_date: editTaskDue.value,
+            description: editActivityDesc.value.trim()
+          })
+        });
+      } else {
+        await fetch("/api/events/update", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            event_id: currentSelectedActivity.data.id,
+            calendar_id: currentSelectedActivity.data.calendar_id || "primary",
+            title: editActivityTitle.value.trim(),
+            start_time: editEventStart.value.trim(),
+            end_time: editEventEnd.value.trim(),
+            location: editEventLoc.value.trim(),
+            description: editActivityDesc.value.trim()
+          })
+        });
+      }
+      activityDetailModal.classList.add("hidden");
+      await fetchDashboard(true);
+    } catch (err) {
+      alert("Error actualitzant l'activitat: " + err.message);
+    }
+  });
+}
+
+// --- SISTEMA DE CALENDARI INTERACTIU (GOOGLE CALENDAR STYLE) ---
+const MONTH_NAMES_CA = [
+  "GENER", "FEBRER", "MARÇ", "ABRIL", "MAIG", "JUNY",
+  "JULIOL", "AGOST", "SETEMBRE", "OCTUBRE", "NOVEMBRE", "DESEMBRE"
+];
+
+function renderInteractiveCalendar() {
+  if (!calendarGrid) return;
+  calendarGrid.innerHTML = "";
+
+  if (calendarMonthYearLabel) {
+    calendarMonthYearLabel.textContent = `${MONTH_NAMES_CA[calMonth]} ${calYear}`;
+  }
+
+  // Agrupar esdeveniments per data YYYY-MM-DD
+  const eventsByDate = {};
+  allDashboardEvents.forEach(ev => {
+    if (!ev.start_time) return;
+    const dateKey = ev.start_time.split(" ")[0]; // YYYY-MM-DD
+    if (!eventsByDate[dateKey]) eventsByDate[dateKey] = [];
+    eventsByDate[dateKey].push(ev);
+  });
+
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+  // Primer dia del mes (Dilluns = 0 ... Diumenge = 6)
+  const firstDayObj = new Date(calYear, calMonth, 1);
+  const firstDay = firstDayObj.getDay();
+  const startOffset = (firstDay === 0) ? 6 : firstDay - 1;
+
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const daysInPrevMonth = new Date(calYear, calMonth, 0).getDate();
+
+  // 1. Dies del mes anterior
+  for (let i = startOffset - 1; i >= 0; i--) {
+    const dayNum = daysInPrevMonth - i;
+    const cell = document.createElement("div");
+    cell.className = "calendar-day-cell other-month";
+    cell.innerHTML = `<div class="calendar-day-num">${dayNum}</div>`;
+    calendarGrid.appendChild(cell);
+  }
+
+  // 2. Dies del mes actual
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dStr = String(d).padStart(2, '0');
+    const mStr = String(calMonth + 1).padStart(2, '0');
+    const dateKey = `${calYear}-${mStr}-${dStr}`;
+
+    const cell = document.createElement("div");
+    cell.className = "calendar-day-cell";
+    if (dateKey === todayStr) cell.classList.add("today");
+
+    cell.innerHTML = `<div class="calendar-day-num">${d}</div>`;
+
+    const dayEvents = eventsByDate[dateKey] || [];
+    dayEvents.forEach(ev => {
+      const pill = document.createElement("div");
+      let rawTag = ev.tag ? ev.tag.replace(/[\[\]]/g, "") : "LOCAL";
+      let tagClass = rawTag.toLowerCase().replace(/[^a-z0-9]/g, "-");
+      pill.className = `calendar-event-pill tag-${tagClass}`;
+
+      let displayTitle = ev.title || "(Sense títol)";
+      if (ev.tag && displayTitle.startsWith(ev.tag)) {
+        displayTitle = displayTitle.substring(ev.tag.length).trim();
+      }
+      
+      let hora = "";
+      if (ev.start_time && ev.start_time.includes(" ")) {
+        hora = ev.start_time.split(" ")[1] + " ";
+      }
+
+      pill.textContent = `${hora}${displayTitle}`;
+      pill.title = `${ev.title}\n🕒 ${ev.start_time}${ev.end_time ? ' - ' + ev.end_time : ''}${ev.location ? '\n📍 ' + ev.location : ''}`;
+
+      pill.addEventListener("click", (e) => {
+        e.stopPropagation();
+        openActivityDetailModal("event", ev);
+      });
+
+      cell.appendChild(pill);
+    });
+
+    // Clic a la casella per afegir cita directa en aquella data
+    cell.addEventListener("click", () => {
+      eventDateInput.value = dateKey;
+      eventTitleInput.value = "";
+      eventLocInput.value = "";
+      eventTimeInput.value = "10:00";
+      newEventModal.classList.remove("hidden");
+    });
+
+    calendarGrid.appendChild(cell);
+  }
+
+  // 3. Dies del mes següent per completar la quadrícula
+  const totalCells = startOffset + daysInMonth;
+  const nextMonthDays = (totalCells % 7 === 0) ? 0 : 7 - (totalCells % 7);
+  for (let d = 1; d <= nextMonthDays; d++) {
+    const cell = document.createElement("div");
+    cell.className = "calendar-day-cell other-month";
+    cell.innerHTML = `<div class="calendar-day-num">${d}</div>`;
+    calendarGrid.appendChild(cell);
+  }
+}
+
+if (btnOpenCalendarUi) {
+  btnOpenCalendarUi.addEventListener("click", () => {
+    calendarModal.classList.remove("hidden");
+    renderInteractiveCalendar();
+  });
+}
+
+if (calendarModalClose) {
+  calendarModalClose.addEventListener("click", () => {
+    calendarModal.classList.add("hidden");
+  });
+}
+
+if (btnCalPrev) {
+  btnCalPrev.addEventListener("click", () => {
+    calMonth--;
+    if (calMonth < 0) {
+      calMonth = 11;
+      calYear--;
+    }
+    renderInteractiveCalendar();
+  });
+}
+
+if (btnCalNext) {
+  btnCalNext.addEventListener("click", () => {
+    calMonth++;
+    if (calMonth > 11) {
+      calMonth = 0;
+      calYear++;
+    }
+    renderInteractiveCalendar();
+  });
+}
+
+if (btnCalToday) {
+  btnCalToday.addEventListener("click", () => {
+    const now = new Date();
+    calYear = now.getFullYear();
+    calMonth = now.getMonth();
+    renderInteractiveCalendar();
+  });
+}
+
+if (btnCalAdd) {
+  btnCalAdd.addEventListener("click", () => {
+    btnAddEventUi.click();
+  });
+}
+
+// --- SISTEMA DE DIAGRAMA D'ESTATS DE FLUXOS ASÍNCRONS ---
+async function openWorkflowDiagramModal(wf) {
+  currentSelectedWorkflow = wf;
+  if (!workflowDiagramModal) return;
+
+  if (wfModalTitle) wfModalTitle.textContent = wf.title || "Flux Asíncron";
+  if (wfModalSubtitle) wfModalSubtitle.textContent = `Tipus: ${wf.workflow_type} · ID #${wf.id}`;
+
+  const cond = wf.trigger_condition || {};
+  let condStr = "";
+  if (wf.trigger_type === "email_reply") {
+    condStr = `Correu entrant de: ${cond.sender || 'contacte'}`;
+    if (cond.subject_contains) condStr += ` (Assumpte conté: '${cond.subject_contains}')`;
+  } else {
+    condStr = `Data/hora objectiu: ${cond.target_datetime || 'N/A'}`;
+  }
+
+  if (wfModalDesc) {
+    wfModalDesc.innerHTML = `
+      <strong>Condició de Trigger:</strong> ${condStr}<br>
+      <strong>Estat del cicle:</strong> <span class="prio-badge ${(wf.status === 'completed') ? 'baixa' : 'alta'}">${(wf.status || 'pending').toUpperCase()}</span>
+      ${wf.result_summary ? `<div style="margin-top:6px; color:var(--accent-cyan);"><em>${wf.result_summary}</em></div>` : ''}
+    `;
+  }
+
+  // Reset de classes a tots els nodes
+  const allNodes = [nodeStart, nodeWaiting, nodeEval, nodeSuccess, nodeReview, nodeCounter];
+  allNodes.forEach(node => {
+    if (node) {
+      node.classList.remove("active", "completed");
+    }
+  });
+
+  const st = (wf.status || "pending").toLowerCase();
+
+  if (st === "pending") {
+    if (nodeStart) nodeStart.classList.add("completed");
+    if (nodeWaiting) nodeWaiting.classList.add("active");
+    if (wfInteractiveActions) wfInteractiveActions.classList.add("hidden");
+  } else if (st === "waiting_user_review") {
+    if (nodeStart) nodeStart.classList.add("completed");
+    if (nodeWaiting) nodeWaiting.classList.add("completed");
+    if (nodeEval) nodeEval.classList.add("completed");
+    if (nodeReview) nodeReview.classList.add("active");
+    if (nodeCounter) nodeCounter.classList.add("active");
+    
+    if (wfInteractiveActions) {
+      wfInteractiveActions.classList.remove("hidden");
+      if (wfDecisionMessage) {
+        wfDecisionMessage.textContent = wf.result_summary || "El contacte proposa una data alternativa que requereix confirmació o contraproposta:";
+      }
+    }
+  } else if (st === "completed") {
+    if (nodeStart) nodeStart.classList.add("completed");
+    if (nodeWaiting) nodeWaiting.classList.add("completed");
+    if (nodeEval) nodeEval.classList.add("completed");
+    if (nodeSuccess) nodeSuccess.classList.add("completed");
+    if (wfInteractiveActions) wfInteractiveActions.classList.add("hidden");
+  } else {
+    if (nodeStart) nodeStart.classList.add("completed");
+    if (wfInteractiveActions) wfInteractiveActions.classList.add("hidden");
+  }
+
+  await loadWorkflowLogs(wf.id);
+  workflowDiagramModal.classList.remove("hidden");
+}
+
+async function loadWorkflowLogs(wfId) {
+  if (!wfLogsList) return;
+  wfLogsList.innerHTML = `<div class="loading">Carregant registre del flux...</div>`;
+  try {
+    const res = await fetch(`/api/workflows/${wfId}/logs`);
+    if (!res.ok) {
+      wfLogsList.innerHTML = `<div class="empty-state">Sense logs per mostrar.</div>`;
+      return;
+    }
+    const logs = await res.json();
+    if (logs.length === 0) {
+      wfLogsList.innerHTML = `<div class="empty-state">Sense esdeveniments registrats encara.</div>`;
+      return;
+    }
+    wfLogsList.innerHTML = "";
+    logs.forEach(lg => {
+      const row = document.createElement("div");
+      row.className = "wf-log-row";
+      row.innerHTML = `
+        <span class="wf-log-time">${lg.timestamp || ''}</span>
+        <span class="wf-log-action">${lg.action || ''}</span>
+        <span class="wf-log-details">${lg.details || ''}</span>
+      `;
+      wfLogsList.appendChild(row);
+    });
+  } catch (err) {
+    wfLogsList.innerHTML = `<div class="empty-state">Error carregant logs: ${err.message}</div>`;
+  }
+}
+
+if (wfModalClose) {
+  wfModalClose.addEventListener("click", () => {
+    workflowDiagramModal.classList.add("hidden");
+    currentSelectedWorkflow = null;
+  });
+}
+
+if (btnWfAcceptAlt) {
+  btnWfAcceptAlt.addEventListener("click", async () => {
+    if (!currentSelectedWorkflow) return;
+    try {
+      const res = await fetch(`/api/workflows/${currentSelectedWorkflow.id}/advance`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "accept_alternative" })
+      });
+      const data = await res.json();
+      appendMessage("M.A.R.C.", `✅ **Flux actualitzat:** ${data.message}`);
+      await fetchDashboard(true);
+      await loadWorkflowLogs(currentSelectedWorkflow.id);
+      if (nodeSuccess) nodeSuccess.classList.add("completed");
+      if (wfInteractiveActions) wfInteractiveActions.classList.add("hidden");
+    } catch (err) {
+      alert("Error acceptant la data alternativa: " + err.message);
+    }
+  });
+}
+
+if (btnWfProposeNew) {
+  btnWfProposeNew.addEventListener("click", async () => {
+    if (!currentSelectedWorkflow) return;
+    const contra = prompt("Escriu la nova contraproposta de dia/hora (ex: 'Dijous a les 11:30h us va bé?'):");
+    if (!contra || !contra.trim()) return;
+
+    try {
+      const res = await fetch(`/api/workflows/${currentSelectedWorkflow.id}/advance`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "propose_counter",
+          counter_proposal_text: contra.trim()
+        })
+      });
+      const data = await res.json();
+      appendMessage("M.A.R.C.", `✉️ **Contraproposta enviada:** ${data.message}`);
+      await fetchDashboard(true);
+      await loadWorkflowLogs(currentSelectedWorkflow.id);
+      if (wfInteractiveActions) wfInteractiveActions.classList.add("hidden");
+      if (nodeCounter) nodeCounter.classList.add("completed");
+    } catch (err) {
+      alert("Error enviant la contraproposta: " + err.message);
+    }
+  });
+}
+
+if (btnWfCancel) {
+  btnWfCancel.addEventListener("click", async () => {
+    if (!currentSelectedWorkflow) return;
+    if (!confirm("Vols cancel·lar definitivament aquest flux?")) return;
+
+    try {
+      const res = await fetch(`/api/workflows/${currentSelectedWorkflow.id}/advance`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "cancel" })
+      });
+      const data = await res.json();
+      appendMessage("M.A.R.C.", `🛑 **Flux cancel·lat:** ${data.message}`);
+      await fetchDashboard(true);
+      workflowDiagramModal.classList.add("hidden");
+    } catch (err) {
+      alert("Error cancel·lant el flux: " + err.message);
+    }
+  });
+}
 
 // LISTENERS GENERALS
 if (btnSyncNow) {
@@ -581,7 +1512,7 @@ if (btnSyncNow) {
       const res = await fetch("/api/sync");
       const data = await res.json();
       appendMessage("M.A.R.C.", data.message || "Sincronització completada.");
-      await fetchDashboard();
+      await fetchDashboard(true);
       await fetchSystemStatus();
     } catch (err) {
       appendMessage("M.A.R.C.", `⚠️ Error en sincronitzar: ${err.message}`);
@@ -593,7 +1524,7 @@ if (btnSyncNow) {
 }
 
 btnRefresh.addEventListener("click", () => {
-  fetchDashboard();
+  fetchDashboard(true);
   fetchSystemStatus();
 });
 modalApproveBtn.addEventListener("click", () => respondreAccio(true));
@@ -601,5 +1532,22 @@ modalRejectBtn.addEventListener("click", () => respondreAccio(false));
 modalCloseBtn.addEventListener("click", () => actionModal.classList.add("hidden"));
 
 // INICIALITZACIÓ
-fetchDashboard();
-fetchSystemStatus();
+(async function init() {
+  if (currentSessionLabel) currentSessionLabel.textContent = currentSession;
+  if (sessionSelect) {
+    if (!Array.from(sessionSelect.options).some(o => o.value === currentSession)) {
+      const opt = document.createElement("option");
+      opt.value = currentSession;
+      opt.textContent = currentSession;
+      sessionSelect.appendChild(opt);
+    }
+    sessionSelect.value = currentSession;
+  }
+  // Executem en paral·lel per a màxima immediatesa i sense bloquejos mutus
+  fetchSystemStatus();
+  loadSessionHistory(currentSession);
+  fetchDashboard();
+
+  // Actualització suau periòdica de l'estat del sistema cada 30 segons
+  setInterval(fetchSystemStatus, 30000);
+})();

@@ -1,4 +1,5 @@
 import os
+import json
 from datetime import datetime, timedelta
 import requests
 from bs4 import BeautifulSoup
@@ -252,6 +253,17 @@ def preparar_i_enviar_correu(destinatari: str, assumpte: str, cos_missatge: str)
 
     return f"[ACCIÓ PENDENT - ID: {accio['action_id']}] S'ha preparat el correu per a '{destinatari}'. Revisa el contingut i aprova l'enviament des del modal."
 
+@tool
+def analitzar_correus_udg() -> str:
+    """
+    Analitza de manera autònoma els correus rebuts de la Universitat de Girona (UdG, EPS, Moodle o professors).
+    Detecta terminis de lliurament de treballs/pràctiques, dates d'examen, tutories o convocatòries oficials.
+    Crea automàticament les tasques pertinents a la llista de feina (to-dos) i programa els recordatoris de termini a l'agenda (Google Calendar i local).
+    """
+    from marc.services.udg_email_service import process_all_pending_udg_emails
+    res = process_all_pending_udg_emails()
+    return res["message"]
+
 
 # ==============================================================================
 # 4. SPOTIFY (MÚSICA I REPRODUCCIÓ)
@@ -401,7 +413,7 @@ def buscar_informacio_internet(consulta: str) -> str:
     Busca informació actualitzada a internet utilitzant el motor privat SearxNG.
     Útil per consultar notícies, el temps, informació sobre empreses, persones o conceptes.
     """
-    url = "http://localhost:8080/search"
+    url = "http://127.0.0.1:8080/search"
     params = {
         "q": consulta,
         "format": "json"
@@ -466,4 +478,98 @@ def sincronitzar_dades_remotes() -> str:
     """
     from marc.services.sync_manager import run_full_synchronization
     res = run_full_synchronization()
+    return res["message"]
+
+# ==============================================================================
+# 9. FLUXOS DE TREBALL ASÍNCRONS I AUTOMATITZACIONS (STATE MACHINE ENGINE)
+# ==============================================================================
+
+@tool
+def crear_flux_asincron(
+    titol: str,
+    tipus_flux: str,
+    trigger_tipus: str,
+    condicio_trigger_json: str,
+    accio_tipus: str,
+    configuracio_accio_json: str,
+    context_dades_json: str = "{}"
+) -> str:
+    """
+    Registra un nou flux de treball asíncron que s'executarà en segon pla quan es compleixi un disparador (trigger).
+    Permet gestionar tasques que requereixen esperar hores o dies (p.ex. rebre resposta d'un correu de reunió, esperar a una data o revisió).
+    
+    Paràmetres:
+    - titol: Nom descriptiu del flux (ex: "Negociació de reunió amb tutor").
+    - tipus_flux: Categoria del flux (ex: "meeting_negotiation", "task_followup", "conditional_reminder", "custom").
+    - trigger_tipus: Disparador esperat: "email_reply" (espera correu), "datetime" (espera arribar a data/hora límit).
+    - condicio_trigger_json: Objecte JSON amb els filtres del disparador.
+      Exemples:
+      - Per a email_reply: {"sender": "prof@udg.edu", "subject_contains": "Reunió"}
+      - Per a datetime: {"target_datetime": "2026-10-25 10:00"}
+    - accio_tipus: Acció a dur a terme quan el trigger es dispari:
+      "schedule_event" (programa cita a l'agenda), "create_task" (crea tasca), "notify" (envia avís).
+    - configuracio_accio_json: Dades de l'acció a executar en format JSON.
+      Exemple: {"event_title": "Reunió TFG", "duration_minutes": 60, "location": "Despatx Tutor"}
+    - context_dades_json: Variables i context addicional en JSON (ex: {"proposed_datetime": "2026-10-27 10:00"}).
+    """
+    from marc.core.db import db_create_workflow
+    try:
+        cond = json.loads(condicio_trigger_json) if isinstance(condicio_trigger_json, str) else condicio_trigger_json
+        act_cfg = json.loads(configuracio_accio_json) if isinstance(configuracio_accio_json, str) else configuracio_accio_json
+        ctx = json.loads(context_dades_json) if isinstance(context_dades_json, str) else context_dades_json
+    except Exception as e:
+        return f"Error en el format JSON dels paràmetres: {e}"
+
+    wf_id = db_create_workflow(
+        title=titol,
+        workflow_type=tipus_flux,
+        trigger_type=trigger_tipus,
+        trigger_condition=cond,
+        action_type=accio_tipus,
+        action_config=act_cfg,
+        context_data=ctx
+    )
+    return f"Flux de treball asíncron #{wf_id} '{titol}' creat i activat. Estat: pendent de trigger '{trigger_tipus}'."
+
+@tool
+def consultar_fluxos_actius(filtre: str = "tots") -> str:
+    """
+    Consulta tots els fluxos de treball asíncrons actius o recents i el seu estat actual.
+    Útil per comprovar quines automatitzacions o respostes està esperant l'agent.
+    Paràmetres:
+    - filtre: Opcional. "tots", "pending" o "completed". Per defecte "tots".
+    """
+    from marc.core.db import db_get_workflows
+    status_filter = filtre.strip().lower() if filtre and filtre.strip().lower() in ("pending", "completed", "cancelled") else None
+    wfs = db_get_workflows(status=status_filter)
+    if not wfs:
+        return "No hi ha cap flux de treball asíncron registrat."
+    
+    linies = ["FLUXOS DE TREBALL ASÍNCRONS (AUTOMATITZACIONS):"]
+    for w in wfs:
+        estat_icon = "⏳" if w["status"] == "pending" else ("✅" if w["status"] == "completed" else "⚠️")
+        linies.append(f"- #{w['id']} {estat_icon} [{w['status'].upper()}] '{w['title']}' | Tipus: {w['workflow_type']} | Trigger: {w['trigger_type']}")
+        if w.get("result_summary"):
+            linies.append(f"  Resultat: {w['result_summary']}")
+    return "\n".join(linies)
+
+@tool
+def cancel_lar_flux_asincron(flux_id: int) -> str:
+    """
+    Cancel·la un flux de treball asíncron actiu perquè deixi d'esperar disparadors.
+    """
+    from marc.core.db import db_update_workflow, db_add_workflow_log
+    db_update_workflow(flux_id, status="cancelled", result_summary="Cancel·lat manualment per l'usuari.")
+    db_add_workflow_log(flux_id, "cancelled", "Cancel·lat per comanda de l'agent/usuari.")
+    return f"Flux #{flux_id} cancel·lat correctament."
+
+@tool
+def executar_cicle_fluxos(motiu: str = "verificacio_manual") -> str:
+    """
+    Força una revisió immediata de tots els fluxos asíncrons pendents (correus rebuts i terminis).
+    Paràmetres:
+    - motiu: Motiu de l'execució (per defecte 'verificacio_manual').
+    """
+    from marc.services.workflow_engine import run_workflow_cycle
+    res = run_workflow_cycle()
     return res["message"]

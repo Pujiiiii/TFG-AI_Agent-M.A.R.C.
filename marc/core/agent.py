@@ -21,17 +21,35 @@ from marc.core.tools import (
     generar_daily_briefing,
     buscar_informacio_internet,
     visitar_pagina_web,
-    sincronitzar_dades_remotes
+    sincronitzar_dades_remotes,
+    analitzar_correus_udg,
+    crear_flux_asincron,
+    consultar_fluxos_actius,
+    cancel_lar_flux_asincron,
+    executar_cicle_fluxos
 )
+
+from langchain_core.messages import HumanMessage, AIMessage
 
 load_dotenv()
 
-# Magatzem en memòria per a les sessions
+# Magatzem en memòria per a les sessions (hidratat des de SQLite)
 store = {}
 
 def get_session_history(session_id: str):
     if session_id not in store:
-        store[session_id] = ChatMessageHistory()
+        history = ChatMessageHistory()
+        try:
+            from marc.core.db import db_get_session_messages
+            msgs = db_get_session_messages(session_id)
+            for m in msgs:
+                if m["sender"].lower() == "user":
+                    history.add_message(HumanMessage(content=m["message"]))
+                else:
+                    history.add_message(AIMessage(content=m["message"]))
+        except Exception as e:
+            print(f"[Agent Memory Load Warning]: {e}")
+        store[session_id] = history
     return store[session_id]
 
 def get_agent_executor():
@@ -50,13 +68,18 @@ def get_agent_executor():
         cancel_lar_esdeveniment,
         consultar_correus_recents,
         preparar_i_enviar_correu,
+        analitzar_correus_udg,
         reproduir_musica_spotify,
         controlar_reproduccio_spotify,
         enviar_notificacio_o_missatge,
         generar_daily_briefing,
         buscar_informacio_internet,
         visitar_pagina_web,
-        sincronitzar_dades_remotes
+        sincronitzar_dades_remotes,
+        crear_flux_asincron,
+        consultar_fluxos_actius,
+        cancel_lar_flux_asincron,
+        executar_cicle_fluxos
     ]
     
     prompt = ChatPromptTemplate.from_messages([
@@ -64,9 +87,11 @@ def get_agent_executor():
          "Ets en M.A.R.C. (Mòdul d'Assistència i Resposta Computacional), el secretari executiu i assistent personal autònom de l'usuari. "
          "La teva feina és gestionar la seva jornada, coordinar la seva feina, comunicacions i multimèdia: "
          "- Gestionar tasques i to-dos (afegir, completar, prioritzar). "
-         "- Consultar l'agenda i programar o cancel·lar reunions i esdeveniments (sincronitzat amb Google Calendar i local). "
+         "- Consultar l'agenda i programar o cancel·lar reunions i esdeveniments (sincronitzat amb Google Calendar i local). Tens visibilitat tant dels teus esdeveniments personals com de tots els calendaris subscrits o importats (per exemple: horaris de classe de la universitat UdG, sessions i curses de Formula 1, festius, etc.). "
          "- Revisar correus de la bústia (IMAP en viu o local), redactar respostes i enviar correus via SMTP. "
-         "- Controlar la música a Spotify (cercar cançons, àlbums, artistes, pausar, reprendre o passar pista). "
+         "- Analitzar autònomament els correus rebuts de la universitat (UdG / EPS / Moodle / professors): detectar terminis de plaç d'entrega de treballs, pràctiques o dates d'examen, i crear automàticament tasques a To-Do i recordatoris a l'agenda. "
+         "- Gestionar fluxos de treball asíncrons i màquines d'estats amb triggers (State Machine Engine): si l'usuari et demana una comanda que requereix diversos passos en el temps (com per exemple demanar una reunió a algú i esperar resposta per correu per crear la cita a l'agenda, o esperar un termini temporal), has d'enviar el correu corresponent i crear immediatament un flux asíncron amb `crear_flux_asincron`. Així el sistema monitorarà en segon pla les respostes i executarà la següent acció quan arribi el trigger sense haver d'esperar manualment. "
+         "- Controlar la música a Spotify (cercar i posar cançons, àlbums, artistes, pausar, reprendre o passar de pista). "
          "- Enviar notificacions o missatges (Telegram / canals alertes). "
          "- Proporcionar el 'daily briefing' diari quan l'usuari ho demani o saludi pel matí. "
          "- Fer cerques a internet sobre conceptes, notícies o preparació de reunions. "
@@ -82,7 +107,7 @@ def get_agent_executor():
     ])
     
     agent = create_tool_calling_agent(llm, tools, prompt)
-    return AgentExecutor(agent=agent, tools=tools, verbose=True, max_iterations=8)
+    return AgentExecutor(agent=agent, tools=tools, verbose=False, max_iterations=8)
 
 # Instància base de l'executor
 _executor = get_agent_executor()
