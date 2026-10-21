@@ -1,6 +1,20 @@
-import subprocess
+import os
 import sys
+import time
+import subprocess
 from datetime import datetime
+
+def obtenir_executable_python():
+    """Troba automàticament l'intèrpret de l'entorn virtual 'venv' del projecte."""
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    venv_win = os.path.join(base_dir, "venv", "Scripts", "python.exe")
+    venv_unix = os.path.join(base_dir, "venv", "bin", "python")
+
+    if os.path.exists(venv_win):
+        return venv_win
+    elif os.path.exists(venv_unix):
+        return venv_unix
+    return sys.executable
 
 def fer_auto_commit_final():
     print("\n[M.A.R.C. Shutdown] Aturada de servidor detectada (Ctrl + C). Verificant Git...")
@@ -34,17 +48,33 @@ def fer_auto_commit_final():
         print(f"[M.A.R.C. Shutdown] ⚠️ Error en el commit de tancament: {e}")
 
 if __name__ == "__main__":
+    python_exe = obtenir_executable_python()
+    print(f"[M.A.R.C. Launcher] Utilitzant intèrpret: {python_exe}")
+
     comanda = [
-        sys.executable, "-m", "uvicorn", 
+        python_exe, "-m", "uvicorn", 
         "marc.main:app", 
         "--reload", 
         "--reload-dir", "marc", 
         "--host", "0.0.0.0", 
         "--port", "8000"
     ]
+
+    temps_inici = time.time()
+    servidor_executat = False
+
     try:
-        subprocess.run(comanda)
+        proc = subprocess.run(comanda)
+        temps_durada = time.time() - temps_inici
+        if proc.returncode != 0 and temps_durada < 2:
+            print(f"\n⚠️ Error en executar el servidor (codi {proc.returncode}).")
+            print("Consell: Assegura't que l'entorn virtual té instal·lades les dependències:")
+            print("         .\\venv\\Scripts\\pip install -r requirements.txt")
+        else:
+            servidor_executat = True
     except KeyboardInterrupt:
-        pass
+        servidor_executat = True
     finally:
-        fer_auto_commit_final()
+        # Només fem commit si el servidor ha estat funcionant de debò i s'ha aturat
+        if servidor_executat or (time.time() - temps_inici) > 4:
+            fer_auto_commit_final()
