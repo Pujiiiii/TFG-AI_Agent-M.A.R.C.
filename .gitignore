@@ -231,3 +231,6 @@ token.json
 .env
 .env.*
 
+# Temporary / Scratch
+scratch/
+

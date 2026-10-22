@@ -98,6 +98,12 @@ def fetch_unread_emails(limit: int = 5):
                         })
 
             mail.logout()
+            if result_emails:
+                try:
+                    from marc.services.workflow_engine import run_workflow_cycle
+                    run_workflow_cycle()
+                except Exception:
+                    pass
             return result_emails
         except Exception as e:
             print(f"[Email Hub IMAP] Error connectant a {imap_host}: {e}. Utilitzant bústia local.")

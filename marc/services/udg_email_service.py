@@ -79,10 +79,14 @@ def sync_imap_udg_emails():
                             if payload:
                                 body = payload.decode(msg.get_content_charset() or "utf-8", errors="replace")
 
-                        if is_udg_sender_or_subject(sender, subject, body):
-                            # Comprovem si ja és a SQLite
-                            conn = get_db_connection()
-                            c = conn.cursor()
+                        is_udg = is_udg_sender_or_subject(sender, subject, body)
+                        # Comprovem si hi ha fluxos asíncrons pendents o és d'interès general
+                        conn = get_db_connection()
+                        c = conn.cursor()
+                        c.execute("SELECT id FROM workflows WHERE status = 'pending' AND trigger_type = 'email_reply'")
+                        has_pending_wf = bool(c.fetchall())
+
+                        if is_udg or has_pending_wf:
                             c.execute("SELECT id FROM emails WHERE sender = ? AND subject = ?", (sender.strip(), subject.strip()))
                             exists = c.fetchone()
                             conn.close()
@@ -98,7 +102,16 @@ def sync_imap_udg_emails():
                                     synced_remote=1
                                 )
                                 nous_trobats += 1
+                        else:
+                            conn.close()
         mail.logout()
+        # Si hem trobat nous correus, avaluem immediatament els fluxos
+        if nous_trobats > 0:
+            try:
+                from marc.services.workflow_engine import run_workflow_cycle
+                run_workflow_cycle()
+            except Exception as wf_e:
+                print(f"[UDG Email Service] Error executant fluxos: {wf_e}")
     except Exception as e:
         print(f"[UDG Email Service] Error sincronitzant IMAP: {e}")
 

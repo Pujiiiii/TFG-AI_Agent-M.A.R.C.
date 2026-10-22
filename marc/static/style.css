@@ -287,21 +287,28 @@ body {
 
 .widget-tabs {
   display: flex;
-  gap: 4px;
+  gap: 3px;
   border-bottom: 1px solid var(--border-color);
   padding-bottom: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.widget-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .widget-tab {
-  flex: 1;
+  flex: 0 0 auto;
+  white-space: nowrap;
   background: transparent;
   border: none;
   border-bottom: 2px solid transparent;
   color: var(--text-dim);
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.69rem;
   font-weight: 700;
-  padding: 5px 2px;
+  padding: 5px 6px;
   cursor: pointer;
   transition: all 0.2s ease;
   text-align: center;
@@ -325,24 +332,10 @@ body {
   margin-top: 6px;
 }
 
-.widget-view.hidden {
+.hidden,
+.widget-view.hidden,
+.modal-overlay.hidden {
   display: none !important;
-}
-
-/* Mode DUAL: ambdues vistes visibles */
-.widget-panel.dual-mode .widget-view {
-  display: flex !important;
-  flex: 1;
-  min-height: 0;
-  border-bottom: 1px dashed var(--border-color);
-  padding-bottom: 6px;
-  margin-bottom: 6px;
-}
-
-.widget-panel.dual-mode .widget-view:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
-  margin-bottom: 0;
 }
 
 .widget-actions {

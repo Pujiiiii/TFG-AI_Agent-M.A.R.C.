@@ -29,6 +29,7 @@ from marc.core.tools import (
     crear_flux_asincron,
     consultar_fluxos_actius,
     cancel_lar_flux_asincron,
+    eliminar_flux_asincron,
     executar_cicle_fluxos
 )
 
@@ -83,6 +84,7 @@ ALL_TOOLS = [
     crear_flux_asincron,
     consultar_fluxos_actius,
     cancel_lar_flux_asincron,
+    eliminar_flux_asincron,
     executar_cicle_fluxos
 ]
 

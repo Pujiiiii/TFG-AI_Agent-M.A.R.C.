@@ -22,7 +22,6 @@ const btnSyncNow = document.getElementById("btn-sync-now");
 // ELEMENTS DEL WIDGET D'AGENDA I TASQUES
 const tabBtnTasks = document.getElementById("tab-btn-tasks");
 const tabBtnAgenda = document.getElementById("tab-btn-agenda");
-const tabBtnDual = document.getElementById("tab-btn-dual");
 const widgetPanel = document.querySelector(".widget-panel");
 const tasksContainer = document.getElementById("tasks-container");
 const agendaContainer = document.getElementById("agenda-container");
@@ -207,104 +206,43 @@ if (btnAnalyzeUdgUi) {
   });
 }
 
-// PESTANYES DEL WIDGET (TASQUES / AGENDA / FLUXOS / DOCS / MÈTRIQUES / DUAL)
+// PESTANYES DEL WIDGET (TASQUES / AGENDA / FLUXOS / DOCS / MÈTRIQUES)
+function activateWidgetTab(activeBtn, activeContainer) {
+  [tabBtnTasks, tabBtnAgenda, tabBtnWorkflows, tabBtnDocs, tabBtnAnalytics].forEach(btn => {
+    if (btn) btn.classList.remove("active");
+  });
+  [tasksContainer, agendaContainer, workflowsContainer, docsContainer, analyticsContainer].forEach(cnt => {
+    if (cnt) cnt.classList.add("hidden");
+  });
+  if (activeBtn) activeBtn.classList.add("active");
+  if (activeContainer) activeContainer.classList.remove("hidden");
+}
+
 tabBtnTasks.addEventListener("click", () => {
-  tabBtnTasks.classList.add("active");
-  tabBtnAgenda.classList.remove("active");
-  if (tabBtnWorkflows) tabBtnWorkflows.classList.remove("active");
-  if (tabBtnDocs) tabBtnDocs.classList.remove("active");
-  if (tabBtnAnalytics) tabBtnAnalytics.classList.remove("active");
-  if (tabBtnDual) tabBtnDual.classList.remove("active");
-  if (widgetPanel) widgetPanel.classList.remove("dual-mode");
-  tasksContainer.classList.remove("hidden");
-  agendaContainer.classList.add("hidden");
-  if (workflowsContainer) workflowsContainer.classList.add("hidden");
-  if (docsContainer) docsContainer.classList.add("hidden");
-  if (analyticsContainer) analyticsContainer.classList.add("hidden");
+  activateWidgetTab(tabBtnTasks, tasksContainer);
 });
 
 tabBtnAgenda.addEventListener("click", () => {
-  tabBtnAgenda.classList.add("active");
-  tabBtnTasks.classList.remove("active");
-  if (tabBtnWorkflows) tabBtnWorkflows.classList.remove("active");
-  if (tabBtnDocs) tabBtnDocs.classList.remove("active");
-  if (tabBtnAnalytics) tabBtnAnalytics.classList.remove("active");
-  if (tabBtnDual) tabBtnDual.classList.remove("active");
-  if (widgetPanel) widgetPanel.classList.remove("dual-mode");
-  agendaContainer.classList.remove("hidden");
-  tasksContainer.classList.add("hidden");
-  if (workflowsContainer) workflowsContainer.classList.add("hidden");
-  if (docsContainer) docsContainer.classList.add("hidden");
-  if (analyticsContainer) analyticsContainer.classList.add("hidden");
+  activateWidgetTab(tabBtnAgenda, agendaContainer);
 });
 
 if (tabBtnWorkflows) {
   tabBtnWorkflows.addEventListener("click", () => {
-    tabBtnWorkflows.classList.add("active");
-    tabBtnTasks.classList.remove("active");
-    tabBtnAgenda.classList.remove("active");
-    if (tabBtnDocs) tabBtnDocs.classList.remove("active");
-    if (tabBtnAnalytics) tabBtnAnalytics.classList.remove("active");
-    if (tabBtnDual) tabBtnDual.classList.remove("active");
-    if (widgetPanel) widgetPanel.classList.remove("dual-mode");
-    if (workflowsContainer) workflowsContainer.classList.remove("hidden");
-    tasksContainer.classList.add("hidden");
-    agendaContainer.classList.add("hidden");
-    if (docsContainer) docsContainer.classList.add("hidden");
-    if (analyticsContainer) analyticsContainer.classList.add("hidden");
+    activateWidgetTab(tabBtnWorkflows, workflowsContainer);
   });
 }
 
 if (tabBtnDocs) {
   tabBtnDocs.addEventListener("click", () => {
-    tabBtnDocs.classList.add("active");
-    tabBtnTasks.classList.remove("active");
-    tabBtnAgenda.classList.remove("active");
-    if (tabBtnWorkflows) tabBtnWorkflows.classList.remove("active");
-    if (tabBtnAnalytics) tabBtnAnalytics.classList.remove("active");
-    if (tabBtnDual) tabBtnDual.classList.remove("active");
-    if (widgetPanel) widgetPanel.classList.remove("dual-mode");
-    if (docsContainer) docsContainer.classList.remove("hidden");
-    tasksContainer.classList.add("hidden");
-    agendaContainer.classList.add("hidden");
-    if (workflowsContainer) workflowsContainer.classList.add("hidden");
-    if (analyticsContainer) analyticsContainer.classList.add("hidden");
+    activateWidgetTab(tabBtnDocs, docsContainer);
     loadDocuments();
   });
 }
 
 if (tabBtnAnalytics) {
   tabBtnAnalytics.addEventListener("click", () => {
-    tabBtnAnalytics.classList.add("active");
-    tabBtnTasks.classList.remove("active");
-    tabBtnAgenda.classList.remove("active");
-    if (tabBtnWorkflows) tabBtnWorkflows.classList.remove("active");
-    if (tabBtnDocs) tabBtnDocs.classList.remove("active");
-    if (tabBtnDual) tabBtnDual.classList.remove("active");
-    if (widgetPanel) widgetPanel.classList.remove("dual-mode");
-    if (analyticsContainer) analyticsContainer.classList.remove("hidden");
-    tasksContainer.classList.add("hidden");
-    agendaContainer.classList.add("hidden");
-    if (workflowsContainer) workflowsContainer.classList.add("hidden");
-    if (docsContainer) docsContainer.classList.add("hidden");
+    activateWidgetTab(tabBtnAnalytics, analyticsContainer);
     loadAnalytics();
-  });
-}
-
-if (tabBtnDual) {
-  tabBtnDual.addEventListener("click", () => {
-    tabBtnDual.classList.add("active");
-    tabBtnTasks.classList.remove("active");
-    tabBtnAgenda.classList.remove("active");
-    if (tabBtnWorkflows) tabBtnWorkflows.classList.remove("active");
-    if (tabBtnDocs) tabBtnDocs.classList.remove("active");
-    if (tabBtnAnalytics) tabBtnAnalytics.classList.remove("active");
-    if (widgetPanel) widgetPanel.classList.add("dual-mode");
-    tasksContainer.classList.remove("hidden");
-    agendaContainer.classList.remove("hidden");
-    if (workflowsContainer) workflowsContainer.classList.add("hidden");
-    if (docsContainer) docsContainer.classList.add("hidden");
-    if (analyticsContainer) analyticsContainer.classList.add("hidden");
   });
 }
 
@@ -588,7 +526,10 @@ function renderWorkflowsList(workflows) {
       <div class="task-content" style="width:100%;">
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <span class="task-title" style="font-weight:600;">${wf.title}</span>
-          <span class="prio-badge ${statusClass}">${statusText}</span>
+          <div style="display:flex; align-items:center; gap:4px;">
+            <span class="prio-badge ${statusClass}">${statusText}</span>
+            <button class="btn-micro btn-wf-del-inline" data-id="${wf.id}" style="color:var(--text-error); border-color:transparent; padding:0 3px;" title="Eliminar aquest flux">🗑️</button>
+          </div>
         </div>
         <div class="task-meta" style="margin-top:4px;">
           <span>${triggerInfo}</span>
@@ -603,6 +544,24 @@ function renderWorkflowsList(workflows) {
     });
 
     workflowsList.appendChild(item);
+  });
+
+  // Listener per a botons d'eliminació ràpida de cada flux
+  const delBtns = workflowsList.querySelectorAll(".btn-wf-del-inline");
+  delBtns.forEach(btn => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const id = btn.getAttribute("data-id");
+      if (!confirm(`Vols eliminar definitivament el flux #${id}?`)) return;
+      try {
+        const res = await fetch(`/api/workflows/${id}`, { method: "DELETE" });
+        const d = await res.json();
+        appendMessage("M.A.R.C.", `🗑️ ${d.message}`);
+        await fetchDashboard(true);
+      } catch (err) {
+        alert("Error eliminant el flux: " + err.message);
+      }
+    });
   });
 }
 
@@ -1443,20 +1402,30 @@ async function openWorkflowDiagramModal(wf) {
   });
 
   const st = (wf.status || "pending").toLowerCase();
+  const cardBranchSuccess = document.getElementById("card-branch-success");
+  const cardBranchLoop = document.getElementById("card-branch-loop");
 
   if (st === "pending") {
     if (nodeStart) nodeStart.classList.add("completed");
     if (nodeWaiting) nodeWaiting.classList.add("active");
-    if (wfInteractiveActions) wfInteractiveActions.classList.add("hidden");
+    if (cardBranchSuccess) cardBranchSuccess.style.opacity = "0.35";
+    if (cardBranchLoop) cardBranchLoop.style.opacity = "0.35";
+    if (wfInteractiveActions) {
+      wfInteractiveActions.classList.add("hidden");
+      wfInteractiveActions.style.display = "none";
+    }
   } else if (st === "waiting_user_review") {
     if (nodeStart) nodeStart.classList.add("completed");
     if (nodeWaiting) nodeWaiting.classList.add("completed");
     if (nodeEval) nodeEval.classList.add("completed");
     if (nodeReview) nodeReview.classList.add("active");
     if (nodeCounter) nodeCounter.classList.add("active");
+    if (cardBranchSuccess) cardBranchSuccess.style.opacity = "0.35";
+    if (cardBranchLoop) cardBranchLoop.style.opacity = "1";
     
     if (wfInteractiveActions) {
       wfInteractiveActions.classList.remove("hidden");
+      wfInteractiveActions.style.display = "block";
       if (wfDecisionMessage) {
         wfDecisionMessage.textContent = wf.result_summary || "El contacte proposa una data alternativa que requereix confirmació o contraproposta:";
       }
@@ -1466,10 +1435,20 @@ async function openWorkflowDiagramModal(wf) {
     if (nodeWaiting) nodeWaiting.classList.add("completed");
     if (nodeEval) nodeEval.classList.add("completed");
     if (nodeSuccess) nodeSuccess.classList.add("completed");
-    if (wfInteractiveActions) wfInteractiveActions.classList.add("hidden");
+    if (cardBranchSuccess) cardBranchSuccess.style.opacity = "1";
+    if (cardBranchLoop) cardBranchLoop.style.opacity = "0.35";
+    if (wfInteractiveActions) {
+      wfInteractiveActions.classList.add("hidden");
+      wfInteractiveActions.style.display = "none";
+    }
   } else {
     if (nodeStart) nodeStart.classList.add("completed");
-    if (wfInteractiveActions) wfInteractiveActions.classList.add("hidden");
+    if (cardBranchSuccess) cardBranchSuccess.style.opacity = "0.35";
+    if (cardBranchLoop) cardBranchLoop.style.opacity = "0.35";
+    if (wfInteractiveActions) {
+      wfInteractiveActions.classList.add("hidden");
+      wfInteractiveActions.style.display = "none";
+    }
   }
 
   await loadWorkflowLogs(wf.id);
@@ -1582,6 +1561,25 @@ if (btnWfCancel) {
   });
 }
 
+// BOTÓ ELIMINAR FLUX DES DEL MODAL
+const btnWfDeleteModal = document.getElementById("btn-wf-delete-modal");
+if (btnWfDeleteModal) {
+  btnWfDeleteModal.addEventListener("click", async () => {
+    if (!currentSelectedWorkflow) return;
+    if (!confirm(`Vols eliminar definitivament el flux #${currentSelectedWorkflow.id} '${currentSelectedWorkflow.title}'?`)) return;
+
+    try {
+      const res = await fetch(`/api/workflows/${currentSelectedWorkflow.id}`, { method: "DELETE" });
+      const data = await res.json();
+      appendMessage("M.A.R.C.", `🗑️ ${data.message}`);
+      await fetchDashboard(true);
+      workflowDiagramModal.classList.add("hidden");
+    } catch (err) {
+      alert("Error eliminant el flux: " + err.message);
+    }
+  });
+}
+
 // LISTENERS GENERALS
 if (btnSyncNow) {
   btnSyncNow.addEventListener("click", async () => {
@@ -1619,15 +1617,36 @@ let voiceEnabled = localStorage.getItem("marc_voice_enabled") !== "false"; // Ac
 if (btnVoiceToggle) {
   btnVoiceToggle.classList.toggle("active", voiceEnabled);
   btnVoiceToggle.textContent = voiceEnabled ? "🔊" : "🔇";
+  btnVoiceToggle.setAttribute("title", voiceEnabled ? "Veu de M.A.R.C.: ACTIVADA (Fes clic per silenciar)" : "Veu de M.A.R.C.: SILENCIADA (Fes clic per activar)");
   btnVoiceToggle.addEventListener("click", () => {
     voiceEnabled = !voiceEnabled;
     localStorage.setItem("marc_voice_enabled", voiceEnabled ? "true" : "false");
     btnVoiceToggle.classList.toggle("active", voiceEnabled);
     btnVoiceToggle.textContent = voiceEnabled ? "🔊" : "🔇";
-    if (!voiceEnabled && window.speechSynthesis) {
-      window.speechSynthesis.cancel();
+    btnVoiceToggle.setAttribute("title", voiceEnabled ? "Veu de M.A.R.C.: ACTIVADA (Fes clic per silenciar)" : "Veu de M.A.R.C.: SILENCIADA (Fes clic per activar)");
+    if (voiceEnabled) {
+      speakAssistantText("Mode de veu activat.");
+    } else {
+      stopAssistantSpeech();
     }
   });
+}
+
+let currentTtsAudio = null;
+
+function stopAssistantSpeech() {
+  if (currentTtsAudio) {
+    try {
+      currentTtsAudio.pause();
+      currentTtsAudio.currentTime = 0;
+    } catch (e) {}
+    currentTtsAudio = null;
+  }
+  if (window.speechSynthesis) {
+    try {
+      window.speechSynthesis.cancel();
+    } catch (e) {}
+  }
 }
 
 function cleanMarkdownForSpeech(md) {
@@ -1647,28 +1666,55 @@ function cleanMarkdownForSpeech(md) {
   return clean;
 }
 
-function speakAssistantText(rawText) {
-  if (!voiceEnabled || !("speechSynthesis" in window)) return;
-  try {
-    window.speechSynthesis.cancel();
-    const cleaned = cleanMarkdownForSpeech(rawText);
-    if (!cleaned) return;
+async function speakAssistantText(rawText) {
+  if (!voiceEnabled) return;
+  const cleaned = cleanMarkdownForSpeech(rawText);
+  if (!cleaned) return;
 
-    const utterance = new SpeechSynthesisUtterance(cleaned);
-    const voices = window.speechSynthesis.getVoices();
-    const bestVoice = voices.find(v => v.lang.startsWith("ca")) || 
-                      voices.find(v => v.lang.startsWith("es"));
-    if (bestVoice) {
-      utterance.voice = bestVoice;
-      utterance.lang = bestVoice.lang;
-    } else {
-      utterance.lang = "ca-ES";
+  stopAssistantSpeech();
+
+  // 1. Intentem utilitzar ElevenLabs d'alta fidelitat via backend si està configurat
+  try {
+    const res = await fetch("/api/tts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: cleaned })
+    });
+    const contentType = res.headers.get("content-type") || "";
+    if (res.ok && contentType.includes("audio")) {
+      const blob = await res.blob();
+      const audioUrl = URL.createObjectURL(blob);
+      currentTtsAudio = new Audio(audioUrl);
+      currentTtsAudio.onended = () => {
+        URL.revokeObjectURL(audioUrl);
+        currentTtsAudio = null;
+      };
+      await currentTtsAudio.play();
+      return;
     }
-    utterance.rate = 1.05;
-    utterance.pitch = 1.0;
-    window.speechSynthesis.speak(utterance);
   } catch (err) {
-    console.warn("Error en la síntesi de veu:", err);
+    console.warn("ElevenLabs no actiu, utilitzant síntesi del sistema:", err);
+  }
+
+  // 2. Fallback: síntesi estàndard del navegador (Web Speech API)
+  if ("speechSynthesis" in window) {
+    try {
+      const utterance = new SpeechSynthesisUtterance(cleaned);
+      const voices = window.speechSynthesis.getVoices();
+      const bestVoice = voices.find(v => v.lang.startsWith("ca")) || 
+                        voices.find(v => v.lang.startsWith("es"));
+      if (bestVoice) {
+        utterance.voice = bestVoice;
+        utterance.lang = bestVoice.lang;
+      } else {
+        utterance.lang = "ca-ES";
+      }
+      utterance.rate = 1.05;
+      utterance.pitch = 1.0;
+      window.speechSynthesis.speak(utterance);
+    } catch (err) {
+      console.warn("Error en la síntesi de veu:", err);
+    }
   }
 }
 

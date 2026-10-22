@@ -274,7 +274,29 @@ def preparar_i_enviar_correu(destinatari: str, assumpte: str, cos_missatge: str)
             subject=dades["assumpte"],
             body=dades["cos"]
         )
-        return res["message"]
+        
+        # Detecció intel·ligent si el correu espera resposta o proposa una reunió/cita
+        text_combinat = f"{dades['assumpte']} {dades['cos']}".lower()
+        paraules_clau_flux = ["?", "reunió", "reunio", "quedem", "quedar", "et va bé", "et va be", "confirmar", "proposta", "trobada", "disponibilitat", "tutor", "hora", "demà", "dilluns", "dimarts", "dimecres", "dijous", "divendres", "oli", "cotxe"]
+        crea_flux = any(kw in text_combinat for kw in paraules_clau_flux)
+        
+        wf_msg = ""
+        if crea_flux:
+            from marc.core.db import db_create_workflow, db_add_workflow_log
+            clean_sub = dades["assumpte"].replace("Re:", "").replace("Fwd:", "").strip()
+            wf_id = db_create_workflow(
+                title=f"Esperant resposta: {dades['assumpte']}",
+                workflow_type="meeting_negotiation",
+                trigger_type="email_reply",
+                trigger_condition={"sender": dades["destinatari"], "subject_contains": clean_sub[:25]},
+                action_type="schedule_event",
+                action_config={"event_title": dades["assumpte"], "duration_minutes": 60, "location": "Per acordar"},
+                context_data={"destinatari": dades["destinatari"], "cos_proposta": dades["cos"]}
+            )
+            db_add_workflow_log(wf_id, "workflow_created", f"Flux #{wf_id} creat automàticament en enviar correu a {dades['destinatari']}")
+            wf_msg = f" 🤖 S'ha activat el flux asíncron #{wf_id} per monitorar la resposta a la pestanya 'FLUXOS'."
+
+        return res["message"] + wf_msg
 
     accio = registrar_accio(
         tipus="email",
@@ -707,6 +729,19 @@ def cancel_lar_flux_asincron(flux_id: int) -> str:
     db_update_workflow(flux_id, status="cancelled", result_summary="Cancel·lat manualment per l'usuari.")
     db_add_workflow_log(flux_id, "cancelled", "Cancel·lat per comanda de l'agent/usuari.")
     return f"Flux #{flux_id} cancel·lat correctament."
+
+@tool
+def eliminar_flux_asincron(flux_id: int) -> str:
+    """
+    Elimina definitivament un flux de treball de la base de dades (especialment si ja està acabat o cancel·lat).
+    Paràmetres:
+    - flux_id: Identificador numèric del flux a eliminar.
+    """
+    from marc.core.db import db_delete_workflow
+    if db_delete_workflow(flux_id):
+        return f"🗑️ El flux #{flux_id} ha estat eliminat definitivament de la base de dades."
+    return f"⚠️ No s'ha trobat cap flux amb ID #{flux_id}."
+
 
 @tool
 def executar_cicle_fluxos(motiu: str = "verificacio_manual") -> str:

@@ -2,7 +2,7 @@ import os
 import requests
 from datetime import datetime
 import groq
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, HTTPException, UploadFile, File, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -400,6 +400,15 @@ def advance_workflow_endpoint(workflow_id: int, req: AdvanceWorkflowRequest):
         return {"success": True, "message": "Nova proposta registrada. S'espera la confirmació."}
     return {"success": False, "message": "Acció no reconeguda."}
 
+@app.delete("/api/workflows/{workflow_id}")
+def delete_workflow_endpoint(workflow_id: int):
+    """Elimina un flux de treball acabat o cancel·lat definitivament."""
+    from marc.core.db import db_delete_workflow
+    success = db_delete_workflow(workflow_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Flux no trobat.")
+    return {"success": True, "message": f"Flux #{workflow_id} eliminat correctament."}
+
 @app.post("/api/spotify/play")
 def spotify_play_endpoint(req: SpotifyPlayRequest):
     res = play_music(req.query, req.music_type)
@@ -412,10 +421,25 @@ def spotify_control_endpoint(req: SpotifyControlRequest):
 
 # --- ENDPOINTS NOUS: TEMPS, MÈTRIQUES TFG, AGENDA I DOCUMENTS ---
 
+def _background_workflow_worker():
+    """Bucle en segon pla per comprovar periòdicament respostes de correu i disparadors de fluxos."""
+    import time
+    while True:
+        try:
+            from marc.services.udg_email_service import sync_imap_udg_emails
+            from marc.services.workflow_engine import run_workflow_cycle
+            sync_imap_udg_emails()
+            run_workflow_cycle()
+        except Exception:
+            pass
+        time.sleep(30)
+
 @app.on_event("startup")
 def startup_event():
+    import threading
     from marc.services.telegram_service import start_telegram_bot_background
     start_telegram_bot_background()
+    threading.Thread(target=_background_workflow_worker, daemon=True, name="WorkflowAutoWorker").start()
 
 @app.on_event("shutdown")
 def shutdown_event():
@@ -482,6 +506,60 @@ async def upload_document_endpoint(file: UploadFile = File(...), auto_analyze: b
         "filename": file.filename, 
         "size_bytes": len(content), 
         "analysis": analysis_text
+    }
+
+# --- ELEVENLABS TEXT-TO-SPEECH (TTS) ---
+class TTSRequest(BaseModel):
+    text: str
+    voice_id: str | None = None
+
+@app.post("/api/tts")
+def text_to_speech_endpoint(req: TTSRequest):
+    """Genera àudio d'alta fidelitat utilitzant ElevenLabs si la clau ELEVENLABS_API_KEY està configurada."""
+    from dotenv import load_dotenv
+    load_dotenv(override=True)
+    api_key = os.getenv("ELEVENLABS_API_KEY", "").strip()
+    if not api_key:
+        return {"available": False, "reason": "ELEVENLABS_API_KEY no configurada al fitxer .env"}
+
+    # Voice ID per defecte (Adam: pNInz6obpgDQGcFmaJgB, o George: JBFqnCBsd6RMkjVDRZzb)
+    voice_id = req.voice_id or os.getenv("ELEVENLABS_VOICE_ID", "pNInz6obpgDQGcFmaJgB").strip()
+    url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
+
+    headers = {
+        "xi-api-key": api_key,
+        "Content-Type": "application/json",
+        "Accept": "audio/mpeg"
+    }
+    payload = {
+        "text": req.text[:1000],
+        "model_id": "eleven_multilingual_v2",
+        "voice_settings": {
+            "stability": 0.5,
+            "similarity_boost": 0.75
+        }
+    }
+
+    try:
+        resp = requests.post(url, json=payload, headers=headers, timeout=12)
+        if resp.status_code == 200:
+            return Response(content=resp.content, media_type="audio/mpeg")
+        else:
+            print(f"[ElevenLabs TTS Error] Status {resp.status_code}: {resp.text}")
+            return {"available": False, "error": f"ElevenLabs API Error {resp.status_code}"}
+    except Exception as e:
+        print(f"[ElevenLabs TTS Exception]: {e}")
+        return {"available": False, "error": str(e)}
+
+@app.get("/api/tts/status")
+def tts_status_endpoint():
+    from dotenv import load_dotenv
+    load_dotenv(override=True)
+    api_key = os.getenv("ELEVENLABS_API_KEY", "").strip()
+    return {
+        "elevenlabs_available": bool(api_key),
+        "voice_id": os.getenv("ELEVENLABS_VOICE_ID", "pNInz6obpgDQGcFmaJgB"),
+        "provider": "elevenlabs" if api_key else "browser"
     }
 
 # --- FITXERS ESTÀTICS I VISTA WEB ---

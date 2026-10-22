@@ -584,6 +584,18 @@ def db_update_workflow(workflow_id: int, status: str = None, context_update: dic
     conn.commit()
     conn.close()
 
+def db_delete_workflow(workflow_id: int) -> bool:
+    """Elimina definitivament un flux de treball i tots els seus registres d'auditoria."""
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("DELETE FROM workflow_logs WHERE workflow_id = ?", (workflow_id,))
+    c.execute("DELETE FROM workflows WHERE id = ?", (workflow_id,))
+    deleted = c.rowcount > 0
+    conn.commit()
+    conn.close()
+    return deleted
+
+
 def db_add_workflow_log(workflow_id: int, event_type: str, detail: str):
     """Afegeix una entrada a l'auditoria del flux."""
     conn = get_db_connection()
