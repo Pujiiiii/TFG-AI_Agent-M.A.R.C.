@@ -607,6 +607,102 @@ def db_get_workflow_logs(workflow_id: int) -> list:
     conn.close()
     return rows
 
+def db_get_analytics_stats() -> dict:
+    """Calcula mètriques i estadístiques globals per a la memòria i defensa del TFG."""
+    conn = get_db_connection()
+    c = conn.cursor()
+    
+    # 1. Tasques
+    c.execute("SELECT status, priority, count(*) as cnt FROM tasks GROUP BY status, priority")
+    task_rows = c.fetchall()
+    total_tasks = 0
+    completed_tasks = 0
+    pending_tasks = 0
+    by_priority = {"alta": 0, "mitjana": 0, "baixa": 0}
+    for r in task_rows:
+        cnt = r["cnt"]
+        total_tasks += cnt
+        st = r["status"].lower()
+        if st == "completada":
+            completed_tasks += cnt
+        else:
+            pending_tasks += cnt
+        prio = r["priority"].lower()
+        if prio in by_priority:
+            by_priority[prio] += cnt
+            
+    # 2. Esdeveniments d'agenda
+    c.execute("SELECT count(*) as total, sum(CASE WHEN title LIKE '%[Focus]%' THEN 1 ELSE 0 END) as focus_cnt FROM events")
+    ev_row = c.fetchone()
+    total_events = ev_row["total"] if ev_row else 0
+    focus_events = ev_row["focus_cnt"] or 0 if ev_row else 0
+    
+    # 3. Correus i acadèmics UdG
+    c.execute("SELECT count(*) as total, sum(CASE WHEN is_read = 1 OR sender LIKE '%udg.edu%' OR sender LIKE '%moodle%' THEN 1 ELSE 0 END) as analyzed_cnt FROM emails")
+    em_row = c.fetchone()
+    total_emails = em_row["total"] if em_row else 0
+    analyzed_emails = em_row["analyzed_cnt"] or 0 if em_row else 0
+    
+    # 4. Fluxos asíncrons
+    c.execute("SELECT count(*) as total, sum(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_wf, sum(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_wf FROM workflows")
+    wf_row = c.fetchone()
+    total_wf = wf_row["total"] if wf_row else 0
+    completed_wf = wf_row["completed_wf"] or 0 if wf_row else 0
+    pending_wf = wf_row["pending_wf"] or 0 if wf_row else 0
+    
+    # 5. Missatges de xat totals
+    c.execute("SELECT count(*) as total_msgs, count(DISTINCT session_id) as total_sessions FROM chat_messages")
+    chat_row = c.fetchone()
+    total_msgs = chat_row["total_msgs"] if chat_row else 0
+    total_sessions = chat_row["total_sessions"] if chat_row else 0
+    
+    conn.close()
+    
+    completion_rate = round((completed_tasks / total_tasks * 100), 1) if total_tasks > 0 else 0.0
+    wf_rate = round((completed_wf / total_wf * 100), 1) if total_wf > 0 else 0.0
+    
+    return {
+        "tasks": {
+            "total": total_tasks,
+            "total_tasks": total_tasks,
+            "completed": completed_tasks,
+            "pending": pending_tasks,
+            "completion_rate": completion_rate,
+            "by_priority": by_priority
+        },
+        "calendar": {
+            "total_events": total_events,
+            "focus_sessions": focus_events
+        },
+        "focus_sessions": {
+            "total_sessions": focus_events
+        },
+        "emails_udg": {
+            "total_emails": total_emails,
+            "analyzed_emails": analyzed_emails
+        },
+        "udg_emails": {
+            "total": total_emails,
+            "emails_analyzed": analyzed_emails
+        },
+        "workflows": {
+            "total": total_wf,
+            "total_workflows": total_wf,
+            "completed": completed_wf,
+            "successful": completed_wf,
+            "active": pending_wf,
+            "success_rate": wf_rate
+        },
+        "chat_sessions": {
+            "total_sessions": total_sessions,
+            "total_messages": total_msgs
+        },
+        "interactions": {
+            "total_messages": total_msgs,
+            "sessions_count": total_sessions
+        }
+    }
+
 # Inicialitzar la base de dades
 init_db()
 db_ensure_sample_udg_emails()

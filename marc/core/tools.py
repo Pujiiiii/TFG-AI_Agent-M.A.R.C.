@@ -18,8 +18,12 @@ from marc.services.calendar_service import (
     fetch_calendar_events,
     add_calendar_event,
     delete_calendar_event,
-    is_google_calendar_connected
+    is_google_calendar_connected,
+    detect_calendar_conflicts,
+    suggest_free_slots
 )
+from marc.services.weather_service import get_girona_weather
+from marc.services.document_service import analyze_document_with_ai, list_stored_documents
 from marc.services.email_service import (
     fetch_unread_emails,
     send_email_message,
@@ -145,6 +149,17 @@ def programar_esdeveniment(titol: str, data_hora_inici: str, durada_minuts: int 
     except ValueError:
         data_hora_fi = f"{data_hora_inici} (+{durada_minuts} min)"
 
+    # Detecció proactiva de conflictes d'agenda
+    conflictes = detect_calendar_conflicts(data_hora_inici, data_hora_fi)
+    avis_solapament = ""
+    if conflictes:
+        detalls_conflicte = ", ".join([f"'{c['title']}' ({c['start_time']})" for c in conflictes])
+        slots_lliures = suggest_free_slots(data_hora_inici[:10], duration_minutes=durada_minuts)
+        suggeriments_str = ""
+        if slots_lliures:
+            suggeriments_str = " | Franges lliures recomanades per avui: " + ", ".join([s["label"] for s in slots_lliures[:3]])
+        avis_solapament = f"\n⚠️ **ATENCIÓ DE CONFLICTE D'AGENDA:** Coincideix amb {detalls_conflicte}.{suggeriments_str}"
+
     def aplicar_esdeveniment(dades):
         res = add_calendar_event(
             title=dades["titol"],
@@ -158,19 +173,40 @@ def programar_esdeveniment(titol: str, data_hora_inici: str, durada_minuts: int 
 
     accio = registrar_accio(
         tipus="calendar",
-        resum=f"Programar reunió: '{titol}' el {data_hora_inici}",
+        resum=f"Programar reunió: '{titol}' el {data_hora_inici}" + (" (amb conflicte detectat)" if conflictes else ""),
         dades={
             "titol": titol,
             "data_inici": data_hora_inici,
             "data_fi": data_hora_fi,
             "durada": f"{durada_minuts} minuts",
             "lloc": lloc if lloc else "No especificat",
-            "descripcio": descripcio if descripcio else "Cap descripció"
+            "descripcio": descripcio if descripcio else "Cap descripció",
+            "conflicts": [c["title"] for c in conflictes]
         },
         funcio_execucio=aplicar_esdeveniment
     )
 
-    return f"[ACCIÓ PENDENT - ID: {accio['action_id']}] S'ha preparat la programació de l'esdeveniment '{titol}' per al {data_hora_inici}. Revisa i confirma des de la interfície."
+    return f"[ACCIÓ PENDENT - ID: {accio['action_id']}] S'ha preparat la programació de l'esdeveniment '{titol}' per al {data_hora_inici}.{avis_solapament}\nRevisa i confirma des de la interfície."
+
+@tool
+def suggerir_forats_lliures(data: str = None, durada_minuts: int = 60) -> str:
+    """
+    Troba i suggereix franges horàries lliures a l'agenda (Google Calendar i local) per a una data específica.
+    Ideal per negociar o planificar reunions sense solapaments amb classes de la UdG, F1 o cites personals.
+    Paràmetres:
+      - data: Data a consultar en format 'AAAA-MM-DD' (si no s'indica, s'utilitza avui).
+      - durada_minuts: Durada desitjada de la reunió o bloc de treball (per defecte 60 minuts).
+    """
+    if not data:
+        data = datetime.now().strftime("%Y-%m-%d")
+    slots = suggest_free_slots(target_date=data, duration_minutes=durada_minuts)
+    if not slots:
+        return f"📅 No s'han trobat franges lliures de {durada_minuts} minuts per al dia {data} (dins l'horari de 09:00 a 20:00). La jornada està plena."
+    
+    linies = [f"### 🕒 Franges lliures disponibles per al dia {data} ({durada_minuts} min):"]
+    for s in slots:
+        linies.append(f"- Franja lliure: **{s['label']}** (`{s['start']}` fins a `{s['end']}`)")
+    return "\n".join(linies)
 
 @tool
 def cancel_lar_esdeveniment(esdeveniment_id: str) -> str:
@@ -346,10 +382,114 @@ def enviar_notificacio_o_missatge(destinatari: str, missatge: str, canal: str = 
 # ==============================================================================
 
 @tool
+def consultar_temps_girona(data: str = None) -> str:
+    """
+    Consulta la meteorologia en viu i la previsió per a Girona (Campus Montilivi / EPS) via Open-Meteo.
+    Informa sobre temperatura, pluja, sensació tèrmica i recomanacions (paraigua, etc.).
+    Paràmetres:
+      - data: Data en format 'AAAA-MM-DD' (per defecte avui).
+    """
+    w = get_girona_weather(data)
+    if not w.get("success"):
+        return f"🌦️ {w.get('summary')}"
+    return (
+        f"### 🌦️ Temps a Girona ({w['location']}):\n"
+        f"- **Estat actual:** {w['condition']}\n"
+        f"- **Temperatura:** {w['temperature']}°C (Sensació: {w['apparent_temperature']}°C)\n"
+        f"- **Previsió avui:** Mínima {w['temp_min']}°C / Màxima {w['temp_max']}°C\n"
+        f"- **Probabilitat de pluja:** {w['rain_probability']}%\n"
+        f"- **Recomanació:** {w['recommendation']}"
+    )
+
+@tool
+def activar_mode_focus(minuts: int = 50, tema: str = "Treball profund / Estudi", posar_musica: bool = True) -> str:
+    """
+    Activa una sessió de concentració i estudi profund (Focus Pomodoro):
+    - Bloqueja l'espai de temps a l'agenda com a [Focus].
+    - Inicia música instrumental/Lo-Fi a Spotify per afavorir la concentració.
+    - Notifica l'inici i prepara el cronòmetre de la sessió.
+    Paràmetres:
+      - minuts: Durada de la sessió en minuts (per defecte 50).
+      - tema: Tema o assignatura de la sessió (ex: 'SGBD - Pràctica 2', 'Memòria TFG').
+      - posar_musica: Si és True, activa música relaxant/lo-fi a Spotify.
+    """
+    ara = datetime.now()
+    fi = ara + timedelta(minutes=minuts)
+    ara_str = ara.strftime("%Y-%m-%d %H:%M")
+    fi_str = fi.strftime("%Y-%m-%d %H:%M")
+
+    # 1. Registrar a l'agenda
+    add_calendar_event(
+        title=f"🎯 [Focus] {tema}",
+        start_time=ara_str,
+        end_time=fi_str,
+        location="Zona d'estudi / Concentració",
+        description=f"Sessió de treball profund de {minuts} minuts gestionada per M.A.R.C."
+    )
+
+    # 2. Spotify
+    musica_info = ""
+    if posar_musica:
+        try:
+            m_res = play_music(query="lofi hip hop study", music_type="playlist")
+            musica_info = f" i s'ha engegat Spotify ({m_res.get('message', 'Lo-Fi Study')})"
+        except Exception:
+            musica_info = " (Spotify no disponible)"
+
+    # 3. Notificació interna
+    db_add_notification(
+        recipient="Marc",
+        channel="focus",
+        message=f"🎯 Sessió de focus de {minuts} minuts activada: '{tema}' (fins a les {fi.strftime('%H:%M')})"
+    )
+
+    return (
+        f"🎯 **Mode Focus Activat!**\n"
+        f"- **Objectiu:** {tema}\n"
+        f"- **Durada:** {minuts} minuts (de {ara.strftime('%H:%M')} a {fi.strftime('%H:%M')})\n"
+        f"- **Agenda:** Franja bloquejada al calendari com a `🎯 [Focus] {tema}`{musica_info}.\n"
+        f"- **Consell:** Minimitza finestres, posa el mòbil en silenci i a per totes!"
+    )
+
+@tool
+def analitzar_document_o_practica(nom_fitxer_o_ruta: str) -> str:
+    """
+    Analitza un document acadèmic o professional (enunciat de pràctica en PDF, guia docent o memòria TFG).
+    Extreu objectius, terminis de lliurament, entregables exigits, criteris d'avaluació i tasques recomanades.
+    Paràmetres:
+      - nom_fitxer_o_ruta: Nom del fitxer desat a marc/data/documents o ruta absoluta al PDF/document.
+    """
+    res = analyze_document_with_ai(nom_fitxer_o_ruta)
+    if not res.get("success"):
+        docs = list_stored_documents()
+        docs_str = ", ".join([d["filename"] for d in docs]) if docs else "Cap document a marc/data/documents"
+        return f"⚠️ No s'ha pogut analitzar el document: {res.get('error')}. Documents disponibles: {docs_str}"
+
+    a = res.get("analysis", {})
+    titol = a.get("title", res.get("filename"))
+    resum = a.get("summary", "")
+    
+    lliurables = "\n".join([f"  • {item}" for item in a.get("deliverables", [])]) or "  • Cap detallat"
+    terminis = "\n".join([f"  • **{d.get('concept')}:** {d.get('date')} {d.get('time') or ''}" for d in a.get("deadlines", [])]) or "  • Sense terminis explícits"
+    criteris = "\n".join([f"  • {c}" for c in a.get("evaluation_criteria", [])]) or "  • Criteris generals"
+    tasques = "\n".join([f"  • [{t.get('priority', 'alta').upper()}] {t.get('title')} (Data límit: {t.get('due_date') or 'Sense data'})" for t in a.get("recommended_tasks", [])]) or "  • Cap tasca suggerida"
+
+    return (
+        f"### 📄 Anàlisi Intel·ligent del Document: **{titol}**\n\n"
+        f"**📋 Resum executiu:**\n{resum}\n\n"
+        f"**📦 Lliurables exigits:**\n{lliurables}\n\n"
+        f"**⏰ Terminis i Dates Clau:**\n{terminis}\n\n"
+        f"**🎯 Criteris d'Avaluació:**\n{criteris}\n\n"
+        f"**✅ Tasques Recomanades per a To-Do:**\n{tasques}\n\n"
+        f"---\n"
+        f"*Pots demanar-me que creï automàticament aquestes tasques al teu To-Do o que programi els terminis a la teva agenda.*"
+    )
+
+@tool
 def generar_daily_briefing() -> str:
     """
     Genera un resum executiu complet de la jornada d'avui:
-    - Data i hora actuals.
+    - Data, hora actual i condicions meteorològiques a Girona / EPS.
     - Reunions i esdeveniments previstos a l'agenda.
     - Tasques prioritàries pendents de resoldre.
     - Correus no llegits pendents d'atenció.
@@ -357,6 +497,10 @@ def generar_daily_briefing() -> str:
     ara = datetime.now()
     avui_str = ara.strftime("%Y-%m-%d")
     data_formatada = ara.strftime("%A, %d de %B de %Y")
+
+    # 0. Temps a Girona
+    w = get_girona_weather(avui_str)
+    part_temps = f"  • {w.get('summary', 'Temps no disponible')}"
 
     # 1. Reunions d'avui
     esdeveniments = fetch_calendar_events(date_prefix=avui_str)
@@ -394,6 +538,7 @@ def generar_daily_briefing() -> str:
 
     briefing = (
         f"## ☀️ Daily Executive Briefing // {data_formatada}\n\n"
+        f"### 🌦️ Temps a Girona (EPS - Montilivi):\n{part_temps}\n\n"
         f"### 📅 Agenda d'Avui:\n" + "\n".join(part_agenda) + "\n\n"
         f"### 🎯 Tasques Prioritàries:\n" + "\n".join(part_tasques) + "\n\n"
         f"### 📬 Bústia d'Entrada:\n" + "\n".join(part_correus) + "\n\n"

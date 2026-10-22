@@ -308,3 +308,107 @@ def delete_calendar_event(event_id, calendar_id: str = "primary"):
         return db_delete_event(numeric_id)
     except (ValueError, TypeError):
         return False
+
+def _parse_time_range(start_str: str, end_str: str = None) -> tuple:
+    """Converteix cadenes de data/hora a objectes datetime per comparacions d'intervals."""
+    try:
+        clean_s = str(start_str).replace("T", " ").strip()[:16]
+        dt_start = datetime.strptime(clean_s, "%Y-%m-%d %H:%M")
+        if end_str and " " in str(end_str):
+            clean_e = str(end_str).replace("T", " ").strip()[:16]
+            dt_end = datetime.strptime(clean_e, "%Y-%m-%d %H:%M")
+        else:
+            dt_end = dt_start + timedelta(hours=1)
+        return dt_start, dt_end
+    except Exception:
+        return None, None
+
+def detect_calendar_conflicts(start_time: str, end_time: str = None, exclude_event_id=None) -> list:
+    """
+    Retorna la llista d'esdeveniments que es solapen amb la franja indicada (start_time -> end_time).
+    Comprova tant calendaris de Google (UdG, F1, personal) com l'agenda local de SQLite.
+    """
+    dt_new_start, dt_new_end = _parse_time_range(start_time, end_time)
+    if not dt_new_start or not dt_new_end:
+        return []
+
+    date_prefix = dt_new_start.strftime("%Y-%m-%d")
+    events = fetch_calendar_events(date_prefix=date_prefix)
+    
+    conflicts = []
+    for ev in events:
+        if exclude_event_id and ev.get("id") == exclude_event_id:
+            continue
+        ev_start_raw = ev.get("start_time", "")
+        ev_end_raw = ev.get("end_time", "")
+        if "Tot el dia" in str(ev_start_raw):
+            continue
+        
+        ev_start, ev_end = _parse_time_range(ev_start_raw, ev_end_raw)
+        if not ev_start or not ev_end:
+            continue
+            
+        # Condició de solapament de dues franges [A, B] i [C, D]: max(A, C) < min(B, D)
+        if max(dt_new_start, ev_start) < min(dt_new_end, ev_end):
+            conflicts.append(ev)
+            
+    return conflicts
+
+def suggest_free_slots(target_date: str, duration_minutes: int = 60, start_hour: int = 9, end_hour: int = 20) -> list:
+    """
+    Troba franges horàries lliures d'una durada determinada en una data específica (dins l'horari laboral/acadèmic).
+    """
+    try:
+        clean_date = target_date.strip()[:10]
+        day_dt = datetime.strptime(clean_date, "%Y-%m-%d")
+    except Exception:
+        day_dt = datetime.now()
+        clean_date = day_dt.strftime("%Y-%m-%d")
+        
+    events = fetch_calendar_events(date_prefix=clean_date)
+    
+    # Bloquejos del dia ordenats
+    busy_intervals = []
+    for ev in events:
+        s_raw = ev.get("start_time", "")
+        e_raw = ev.get("end_time", "")
+        if "Tot el dia" in str(s_raw):
+            continue
+        dt_s, dt_e = _parse_time_range(s_raw, e_raw)
+        if dt_s and dt_e:
+            busy_intervals.append((dt_s, dt_e))
+            
+    busy_intervals.sort(key=lambda x: x[0])
+    
+    # Franja operativa del dia
+    day_start = day_dt.replace(hour=start_hour, minute=0, second=0, microsecond=0)
+    day_end = day_dt.replace(hour=end_hour, minute=0, second=0, microsecond=0)
+    
+    free_slots = []
+    current_time = day_start
+    target_delta = timedelta(minutes=duration_minutes)
+    
+    for b_start, b_end in busy_intervals:
+        if b_end <= current_time:
+            continue
+        if b_start > current_time:
+            gap = b_start - current_time
+            if gap >= target_delta:
+                slot_end = current_time + target_delta
+                free_slots.append({
+                    "start": current_time.strftime("%Y-%m-%d %H:%M"),
+                    "end": slot_end.strftime("%Y-%m-%d %H:%M"),
+                    "label": f"{current_time.strftime('%H:%M')} - {slot_end.strftime('%H:%M')}"
+                })
+        if b_end > current_time:
+            current_time = b_end
+            
+    if day_end - current_time >= target_delta:
+        slot_end = current_time + target_delta
+        free_slots.append({
+            "start": current_time.strftime("%Y-%m-%d %H:%M"),
+            "end": slot_end.strftime("%Y-%m-%d %H:%M"),
+            "label": f"{current_time.strftime('%H:%M')} - {slot_end.strftime('%H:%M')}"
+        })
+        
+    return free_slots[:5]

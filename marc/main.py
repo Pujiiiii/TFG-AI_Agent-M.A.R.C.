@@ -2,7 +2,7 @@ import os
 import requests
 from datetime import datetime
 import groq
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -409,6 +409,80 @@ def spotify_play_endpoint(req: SpotifyPlayRequest):
 def spotify_control_endpoint(req: SpotifyControlRequest):
     res = control_playback(req.command)
     return res
+
+# --- ENDPOINTS NOUS: TEMPS, MÈTRIQUES TFG, AGENDA I DOCUMENTS ---
+
+@app.on_event("startup")
+def startup_event():
+    from marc.services.telegram_service import start_telegram_bot_background
+    start_telegram_bot_background()
+
+@app.on_event("shutdown")
+def shutdown_event():
+    from marc.services.telegram_service import stop_telegram_bot
+    stop_telegram_bot()
+
+@app.get("/api/weather/girona")
+def get_weather_endpoint():
+    """Retorna la meteorologia en viu i recomanacions per a Girona (Campus Montilivi / EPS)."""
+    from marc.services.weather_service import get_girona_weather
+    return get_girona_weather()
+
+@app.get("/api/analytics/stats")
+def get_analytics_stats_endpoint():
+    """Retorna les mètriques i dades empíriques de funcionament per a la memòria del TFG."""
+    from marc.core.db import db_get_analytics_stats
+    return db_get_analytics_stats()
+
+@app.get("/api/calendar/free-slots")
+def get_free_slots_endpoint(date: str = None, duration: int = 60):
+    """Retorna les franges lliures de l'agenda per a un dia determinat."""
+    from marc.services.calendar_service import suggest_free_slots
+    if not date:
+        date = datetime.now().strftime("%Y-%m-%d")
+    return {"date": date, "duration": duration, "slots": suggest_free_slots(date, duration)}
+
+@app.get("/api/documents")
+def get_documents_endpoint():
+    """Llista els documents i enunciats de pràctiques desats."""
+    from marc.services.document_service import list_stored_documents
+    return list_stored_documents()
+
+@app.post("/api/documents/upload")
+async def upload_document_endpoint(file: UploadFile = File(...), auto_analyze: bool = True):
+    """Permet carregar un enunciat en PDF/TXT/MD i analitzar-lo automàticament amb IA."""
+    from marc.services.document_service import DOCS_DIR, analyze_document_with_ai, format_document_analysis_markdown
+    os.makedirs(DOCS_DIR, exist_ok=True)
+    file_path = os.path.join(DOCS_DIR, file.filename)
+    content = await file.read()
+    with open(file_path, "wb") as f:
+        f.write(content)
+        
+    analysis_text = None
+    if auto_analyze:
+        raw_res = analyze_document_with_ai(file_path)
+        analysis_text = format_document_analysis_markdown(raw_res)
+        
+        # Inserció automàtica de les tasques recomanades al To-Do
+        if raw_res.get("success") and isinstance(raw_res.get("analysis"), dict):
+            from marc.core.db import db_add_task
+            for t in raw_res["analysis"].get("recommended_tasks", []):
+                try:
+                    db_add_task(
+                        title=t.get("title", f"Tasca extreta de {file.filename}"),
+                        priority=t.get("priority", "alta"),
+                        due_date=t.get("due_date"),
+                        description=f"Auto-generat per l'anàlisi de document: {file.filename}"
+                    )
+                except Exception as e:
+                    print(f"[Auto Task Add Error]: {e}")
+        
+    return {
+        "success": True, 
+        "filename": file.filename, 
+        "size_bytes": len(content), 
+        "analysis": analysis_text
+    }
 
 # --- FITXERS ESTÀTICS I VISTA WEB ---
 static_dir = os.path.join(os.path.dirname(__file__), "static")

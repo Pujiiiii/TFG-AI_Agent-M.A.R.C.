@@ -40,6 +40,28 @@ const workflowsList = document.getElementById("workflows-list");
 const workflowsCount = document.getElementById("workflows-count");
 const btnRunWorkflowsUi = document.getElementById("btn-run-workflows-ui");
 
+// NOVES PESTANYES I VISTES (DOCS & MÈTRIQUES)
+const tabBtnDocs = document.getElementById("tab-btn-docs");
+const docsContainer = document.getElementById("docs-container");
+const docsList = document.getElementById("docs-list");
+const docsCount = document.getElementById("docs-count");
+const btnUploadDocTab = document.getElementById("btn-upload-doc-tab");
+
+const tabBtnAnalytics = document.getElementById("tab-btn-analytics");
+const analyticsContainer = document.getElementById("analytics-container");
+const analyticsContent = document.getElementById("analytics-content");
+const btnRefreshAnalytics = document.getElementById("btn-refresh-analytics");
+
+// NOVES EINES HUD & MULTIMODAL (METEO, FOCUS, VEU, DOCUMENTS)
+const weatherBadge = document.getElementById("weather-badge");
+const weatherIcon = document.getElementById("weather-icon");
+const weatherText = document.getElementById("weather-text");
+const btnFocusQuick = document.getElementById("btn-focus-quick");
+const btnVoiceToggle = document.getElementById("btn-voice-toggle");
+const btnMic = document.getElementById("btn-mic");
+const btnUploadDoc = document.getElementById("btn-upload-doc");
+const fileUploadInput = document.getElementById("file-upload-input");
+
 // MODAL HITL CONFIRMACIÓ D'ACCIONS
 const actionModal = document.getElementById("diff-modal");
 const modalSummary = document.getElementById("modal-summary");
@@ -185,27 +207,35 @@ if (btnAnalyzeUdgUi) {
   });
 }
 
-// PESTANYES DEL WIDGET (TASQUES / AGENDA / FLUXOS / DUAL)
+// PESTANYES DEL WIDGET (TASQUES / AGENDA / FLUXOS / DOCS / MÈTRIQUES / DUAL)
 tabBtnTasks.addEventListener("click", () => {
   tabBtnTasks.classList.add("active");
   tabBtnAgenda.classList.remove("active");
   if (tabBtnWorkflows) tabBtnWorkflows.classList.remove("active");
+  if (tabBtnDocs) tabBtnDocs.classList.remove("active");
+  if (tabBtnAnalytics) tabBtnAnalytics.classList.remove("active");
   if (tabBtnDual) tabBtnDual.classList.remove("active");
   if (widgetPanel) widgetPanel.classList.remove("dual-mode");
   tasksContainer.classList.remove("hidden");
   agendaContainer.classList.add("hidden");
   if (workflowsContainer) workflowsContainer.classList.add("hidden");
+  if (docsContainer) docsContainer.classList.add("hidden");
+  if (analyticsContainer) analyticsContainer.classList.add("hidden");
 });
 
 tabBtnAgenda.addEventListener("click", () => {
   tabBtnAgenda.classList.add("active");
   tabBtnTasks.classList.remove("active");
   if (tabBtnWorkflows) tabBtnWorkflows.classList.remove("active");
+  if (tabBtnDocs) tabBtnDocs.classList.remove("active");
+  if (tabBtnAnalytics) tabBtnAnalytics.classList.remove("active");
   if (tabBtnDual) tabBtnDual.classList.remove("active");
   if (widgetPanel) widgetPanel.classList.remove("dual-mode");
   agendaContainer.classList.remove("hidden");
   tasksContainer.classList.add("hidden");
   if (workflowsContainer) workflowsContainer.classList.add("hidden");
+  if (docsContainer) docsContainer.classList.add("hidden");
+  if (analyticsContainer) analyticsContainer.classList.add("hidden");
 });
 
 if (tabBtnWorkflows) {
@@ -213,11 +243,51 @@ if (tabBtnWorkflows) {
     tabBtnWorkflows.classList.add("active");
     tabBtnTasks.classList.remove("active");
     tabBtnAgenda.classList.remove("active");
+    if (tabBtnDocs) tabBtnDocs.classList.remove("active");
+    if (tabBtnAnalytics) tabBtnAnalytics.classList.remove("active");
     if (tabBtnDual) tabBtnDual.classList.remove("active");
     if (widgetPanel) widgetPanel.classList.remove("dual-mode");
     if (workflowsContainer) workflowsContainer.classList.remove("hidden");
     tasksContainer.classList.add("hidden");
     agendaContainer.classList.add("hidden");
+    if (docsContainer) docsContainer.classList.add("hidden");
+    if (analyticsContainer) analyticsContainer.classList.add("hidden");
+  });
+}
+
+if (tabBtnDocs) {
+  tabBtnDocs.addEventListener("click", () => {
+    tabBtnDocs.classList.add("active");
+    tabBtnTasks.classList.remove("active");
+    tabBtnAgenda.classList.remove("active");
+    if (tabBtnWorkflows) tabBtnWorkflows.classList.remove("active");
+    if (tabBtnAnalytics) tabBtnAnalytics.classList.remove("active");
+    if (tabBtnDual) tabBtnDual.classList.remove("active");
+    if (widgetPanel) widgetPanel.classList.remove("dual-mode");
+    if (docsContainer) docsContainer.classList.remove("hidden");
+    tasksContainer.classList.add("hidden");
+    agendaContainer.classList.add("hidden");
+    if (workflowsContainer) workflowsContainer.classList.add("hidden");
+    if (analyticsContainer) analyticsContainer.classList.add("hidden");
+    loadDocuments();
+  });
+}
+
+if (tabBtnAnalytics) {
+  tabBtnAnalytics.addEventListener("click", () => {
+    tabBtnAnalytics.classList.add("active");
+    tabBtnTasks.classList.remove("active");
+    tabBtnAgenda.classList.remove("active");
+    if (tabBtnWorkflows) tabBtnWorkflows.classList.remove("active");
+    if (tabBtnDocs) tabBtnDocs.classList.remove("active");
+    if (tabBtnDual) tabBtnDual.classList.remove("active");
+    if (widgetPanel) widgetPanel.classList.remove("dual-mode");
+    if (analyticsContainer) analyticsContainer.classList.remove("hidden");
+    tasksContainer.classList.add("hidden");
+    agendaContainer.classList.add("hidden");
+    if (workflowsContainer) workflowsContainer.classList.add("hidden");
+    if (docsContainer) docsContainer.classList.add("hidden");
+    loadAnalytics();
   });
 }
 
@@ -227,10 +297,14 @@ if (tabBtnDual) {
     tabBtnTasks.classList.remove("active");
     tabBtnAgenda.classList.remove("active");
     if (tabBtnWorkflows) tabBtnWorkflows.classList.remove("active");
+    if (tabBtnDocs) tabBtnDocs.classList.remove("active");
+    if (tabBtnAnalytics) tabBtnAnalytics.classList.remove("active");
     if (widgetPanel) widgetPanel.classList.add("dual-mode");
     tasksContainer.classList.remove("hidden");
     agendaContainer.classList.remove("hidden");
     if (workflowsContainer) workflowsContainer.classList.add("hidden");
+    if (docsContainer) docsContainer.classList.add("hidden");
+    if (analyticsContainer) analyticsContainer.classList.add("hidden");
   });
 }
 
@@ -874,6 +948,11 @@ async function enviarMissatgeXat(text) {
     }
 
     appendMessage("M.A.R.C.", data.response);
+
+    // Reproducció per veu automàtica si està activat el mode veu
+    if (voiceEnabled) {
+      speakAssistantText(data.response);
+    }
 
     if (data.pending_action) {
       obrirModalAccio(data.pending_action);
@@ -1531,6 +1610,329 @@ modalApproveBtn.addEventListener("click", () => respondreAccio(true));
 modalRejectBtn.addEventListener("click", () => respondreAccio(false));
 modalCloseBtn.addEventListener("click", () => actionModal.classList.add("hidden"));
 
+// ==========================================================================
+// VEU (TTS & STT), TEMPS, FOCUS, DOCUMENTS I MÈTRIQUES
+// ==========================================================================
+
+// 1. SÍNTESI DE VEU (TTS)
+let voiceEnabled = localStorage.getItem("marc_voice_enabled") !== "false"; // Actiu per defecte
+if (btnVoiceToggle) {
+  btnVoiceToggle.classList.toggle("active", voiceEnabled);
+  btnVoiceToggle.textContent = voiceEnabled ? "🔊" : "🔇";
+  btnVoiceToggle.addEventListener("click", () => {
+    voiceEnabled = !voiceEnabled;
+    localStorage.setItem("marc_voice_enabled", voiceEnabled ? "true" : "false");
+    btnVoiceToggle.classList.toggle("active", voiceEnabled);
+    btnVoiceToggle.textContent = voiceEnabled ? "🔊" : "🔇";
+    if (!voiceEnabled && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+  });
+}
+
+function cleanMarkdownForSpeech(md) {
+  if (!md) return "";
+  let clean = md;
+  clean = clean.replace(/```[\s\S]*?```/g, " (bloc de codi) ");
+  clean = clean.replace(/`([^`]+)`/g, "$1");
+  clean = clean.replace(/\[([^\]]+)\]\([^\)]+\)/g, "$1");
+  clean = clean.replace(/^[#>\-\*]+\s+/gm, "");
+  clean = clean.replace(/[\*_~]/g, "");
+  clean = clean.replace(/\n+/g, ". ").replace(/\s+/g, " ").trim();
+  if (clean.length > 350) {
+    const cut = clean.substring(0, 350);
+    const lastDot = cut.lastIndexOf(".");
+    clean = lastDot > 150 ? cut.substring(0, lastDot + 1) : cut + "...";
+  }
+  return clean;
+}
+
+function speakAssistantText(rawText) {
+  if (!voiceEnabled || !("speechSynthesis" in window)) return;
+  try {
+    window.speechSynthesis.cancel();
+    const cleaned = cleanMarkdownForSpeech(rawText);
+    if (!cleaned) return;
+
+    const utterance = new SpeechSynthesisUtterance(cleaned);
+    const voices = window.speechSynthesis.getVoices();
+    const bestVoice = voices.find(v => v.lang.startsWith("ca")) || 
+                      voices.find(v => v.lang.startsWith("es"));
+    if (bestVoice) {
+      utterance.voice = bestVoice;
+      utterance.lang = bestVoice.lang;
+    } else {
+      utterance.lang = "ca-ES";
+    }
+    utterance.rate = 1.05;
+    utterance.pitch = 1.0;
+    window.speechSynthesis.speak(utterance);
+  } catch (err) {
+    console.warn("Error en la síntesi de veu:", err);
+  }
+}
+
+// 2. RECONEIXEMENT DE VEU (STT - WEB SPEECH RECOGNITION)
+if (btnMic) {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    btnMic.setAttribute("title", "Reconeixement de veu no disponible en aquest navegador");
+    btnMic.style.opacity = "0.5";
+    btnMic.addEventListener("click", () => {
+      alert("El teu navegador no suporta Web Speech API (recomanat Google Chrome o Microsoft Edge).");
+    });
+  } else {
+    const recognition = new SpeechRecognition();
+    recognition.lang = "ca-ES";
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    let isListening = false;
+
+    btnMic.addEventListener("click", () => {
+      if (isListening) {
+        recognition.stop();
+      } else {
+        try {
+          recognition.start();
+          isListening = true;
+          btnMic.classList.add("listening");
+          btnMic.textContent = "⏹️";
+        } catch (err) {
+          console.error("Error iniciant STT:", err);
+          isListening = false;
+          btnMic.classList.remove("listening");
+          btnMic.textContent = "🎙️";
+        }
+      }
+    });
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      if (transcript && transcript.trim()) {
+        userInput.value = transcript;
+        enviarMissatgeXat(transcript);
+      }
+    };
+
+    recognition.onerror = (event) => {
+      console.warn("STT error:", event.error);
+      isListening = false;
+      btnMic.classList.remove("listening");
+      btnMic.textContent = "🎙️";
+    };
+
+    recognition.onend = () => {
+      isListening = false;
+      btnMic.classList.remove("listening");
+      btnMic.textContent = "🎙️";
+    };
+  }
+}
+
+// 3. BADGE DE METEOROLOGIA A GIRONA / CAMPUS MONTILIVI
+async function fetchWeatherBadge() {
+  if (!weatherBadge) return;
+  try {
+    const res = await fetch("/api/weather/girona");
+    if (!res.ok) return;
+    const data = await res.json();
+
+    let icon = "⛅";
+    const cond = (data.condition || "").toLowerCase();
+    if (data.is_rainy || cond.includes("pluja") || cond.includes("plugim") || cond.includes("ruixat")) {
+      icon = "🌧️";
+    } else if (cond.includes("sol") || cond.includes("clar")) {
+      icon = "☀️";
+    } else if (cond.includes("boira")) {
+      icon = "🌫️";
+    } else if (cond.includes("tempesta")) {
+      icon = "⛈️";
+    } else if (cond.includes("neu")) {
+      icon = "❄️";
+    } else if (cond.includes("ennuvolat") || cond.includes("núvols")) {
+      icon = "⛅";
+    }
+
+    if (weatherIcon) weatherIcon.textContent = icon;
+    if (weatherText) weatherText.textContent = `Girona ${data.temperature_c}°C · ${data.condition}`;
+    weatherBadge.setAttribute("title", `EPS Montilivi · ${data.condition}\nMàx: ${data.temp_max_c}°C / Mín: ${data.temp_min_c}°C\nVent: ${data.wind_speed_kmh} km/h | Precipitació: ${data.precipitation_mm} mm\n${data.rain_alert || ''}\nFes clic per consultar previsió al xat`);
+  } catch (err) {
+    console.warn("Error consultant el temps a Girona:", err);
+  }
+}
+
+if (weatherBadge) {
+  weatherBadge.addEventListener("click", () => {
+    enviarMissatgeXat("Quin temps fa a Girona i quina és la previsió per a avui a l'EPS?");
+  });
+}
+
+// 4. BOTÓ RÀPID MODE FOCUS (HUD)
+if (btnFocusQuick) {
+  btnFocusQuick.addEventListener("click", () => {
+    enviarMissatgeXat("M.A.R.C., activa una sessió de mode focus de 50 minuts per a la feina del TFG amb música lo-fi.");
+  });
+}
+
+// 5. GESTIÓ I CÀRREGA DE DOCUMENTS & ENUNCIATS PDF
+if (btnUploadDoc && fileUploadInput) {
+  btnUploadDoc.addEventListener("click", () => fileUploadInput.click());
+}
+if (btnUploadDocTab && fileUploadInput) {
+  btnUploadDocTab.addEventListener("click", () => fileUploadInput.click());
+}
+
+if (fileUploadInput) {
+  fileUploadInput.addEventListener("change", async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    appendMessage("USER", `📎 Pujant document per analitzar: **${file.name}**...`, true);
+    const loadingMsg = appendMessage("M.A.R.C.", `📄 Extraient text i analitzant amb Gemini el document **${file.name}**...`);
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("session_id", currentSession);
+
+    try {
+      const res = await fetch("/api/documents/upload", {
+        method: "POST",
+        body: formData
+      });
+      const data = await res.json();
+
+      if (loadingMsg && loadingMsg.parentElement) {
+        chatMessages.removeChild(loadingMsg.parentElement);
+      }
+
+      if (res.ok) {
+        appendMessage("M.A.R.C.", data.analysis);
+        if (voiceEnabled) {
+          speakAssistantText(`He analitzat el document ${file.name}. T'he afegit les tasques i terminis clau.`);
+        }
+        await loadDocuments();
+        await fetchDashboard();
+      } else {
+        appendMessage("M.A.R.C.", `⚠️ **Error en processar el document:** ${data.detail || data.message || 'Error desconegut'}`);
+      }
+    } catch (err) {
+      if (loadingMsg && loadingMsg.parentElement) {
+        chatMessages.removeChild(loadingMsg.parentElement);
+      }
+      appendMessage("M.A.R.C.", `⚠️ Error de càrrega: ${err.message}`);
+    } finally {
+      fileUploadInput.value = "";
+    }
+  });
+}
+
+async function loadDocuments() {
+  if (!docsList) return;
+  try {
+    const res = await fetch("/api/documents");
+    if (!res.ok) return;
+    const docs = await res.json();
+    if (docsCount) docsCount.textContent = docs.length;
+
+    if (docs.length === 0) {
+      docsList.innerHTML = `<div class="empty-state">No hi ha cap document ni enunciat carregat.<br>Fes clic a <b>+ Pujar PDF</b> per analitzar pràctiques o guies docents.</div>`;
+      return;
+    }
+
+    docsList.innerHTML = "";
+    docs.forEach(doc => {
+      const card = document.createElement("div");
+      card.className = "doc-card clickable-card";
+      const dataStr = doc.uploaded_at ? doc.uploaded_at.split("T")[0] : "";
+
+      card.innerHTML = `
+        <div class="doc-info">
+          <div class="doc-name">📄 ${doc.title}</div>
+          <div class="doc-meta">${doc.filename} · ${doc.word_count} paraules ${dataStr ? '· ' + dataStr : ''}</div>
+        </div>
+        <button class="btn-micro" title="Preguntar sobre aquest document">ANALITZA</button>
+      `;
+
+      card.addEventListener("click", () => {
+        enviarMissatgeXat(`M.A.R.C., mostra'm un resum i els lliurables pendents del document "${doc.title}".`);
+      });
+
+      docsList.appendChild(card);
+    });
+  } catch (err) {
+    console.error("Error carregant documents:", err);
+  }
+}
+
+// 6. TAULELL D'ANÀLISI EMPÍRICA I MÈTRIQUES PER AL TFG
+async function loadAnalytics() {
+  if (!analyticsContent) return;
+  analyticsContent.innerHTML = `<div class="loading">Calculant mètriques del sistema...</div>`;
+
+  try {
+    const res = await fetch("/api/analytics/stats");
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const stats = await res.json();
+
+    const t = stats.tasks || {};
+    const prio = t.by_priority || {};
+    const wf = stats.workflows || {};
+    const udg = stats.udg_emails || {};
+    const focus = stats.focus_sessions || {};
+    const chat = stats.chat_sessions || {};
+
+    analyticsContent.innerHTML = `
+      <div class="analytics-grid">
+        <div class="metric-card accent-green">
+          <div class="metric-label">Taxa Completesa Tasques</div>
+          <div class="metric-val">${t.completion_rate}%</div>
+          <div class="metric-sub">${t.completed} de ${t.total_tasks} tasques (${t.pending} pendents)</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-label">Prioritat de Feina</div>
+          <div class="metric-val" style="font-size:1rem; display:flex; gap:6px; margin-top:4px;">
+            <span class="prio-badge alta">Alta: ${prio.alta || 0}</span>
+            <span class="prio-badge mitjana">Mitj: ${prio.mitjana || 0}</span>
+            <span class="prio-badge baixa">Baixa: ${prio.baixa || 0}</span>
+          </div>
+          <div class="metric-sub">Distribució de tasques</div>
+        </div>
+
+        <div class="metric-card accent-purple">
+          <div class="metric-label">Sessions de Focus TFG</div>
+          <div class="metric-val">${focus.total_sessions}</div>
+          <div class="metric-sub">Blocs de concentració profunda</div>
+        </div>
+
+        <div class="metric-card accent-yellow">
+          <div class="metric-label">Correus UdG Processats</div>
+          <div class="metric-val">${udg.emails_analyzed}</div>
+          <div class="metric-sub">Filtre i extracció automàtica</div>
+        </div>
+
+        <div class="metric-card accent-green">
+          <div class="metric-label">Taxa Èxit Automatitzacions</div>
+          <div class="metric-val">${wf.success_rate}%</div>
+          <div class="metric-sub">${wf.successful} de ${wf.total_workflows} fluxos completats</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-label">Sessions Conversacionals</div>
+          <div class="metric-val">${chat.total_sessions}</div>
+          <div class="metric-sub">Interaccions guardades a SQLite</div>
+        </div>
+      </div>
+    `;
+  } catch (err) {
+    analyticsContent.innerHTML = `<div class="empty-state" style="color:var(--text-error);">Error carregant mètriques: ${err.message}</div>`;
+  }
+}
+
+if (btnRefreshAnalytics) {
+  btnRefreshAnalytics.addEventListener("click", () => loadAnalytics());
+}
+
 // INICIALITZACIÓ
 (async function init() {
   if (currentSessionLabel) currentSessionLabel.textContent = currentSession;
@@ -1547,7 +1949,11 @@ modalCloseBtn.addEventListener("click", () => actionModal.classList.add("hidden"
   fetchSystemStatus();
   loadSessionHistory(currentSession);
   fetchDashboard();
+  fetchWeatherBadge();
+  loadDocuments();
 
   // Actualització suau periòdica de l'estat del sistema cada 30 segons
   setInterval(fetchSystemStatus, 30000);
+  // Actualització meteorològica cada 10 minuts
+  setInterval(fetchWeatherBadge, 600000);
 })();
