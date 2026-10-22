@@ -23,15 +23,48 @@ def _get_groq_client():
         return None
     return groq.Groq(api_key=api_key)
 
+def _get_workflow_evaluation(prompt: str) -> dict:
+    """Avalua el prompt mitjançant Gemini o Groq com a alternativa."""
+    google_key = os.getenv("GOOGLE_API_KEY")
+    if google_key:
+        try:
+            from google import genai
+            from google.genai import types
+            client = genai.Client(api_key=google_key)
+            gemini_model = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite")
+            res = client.models.generate_content(
+                model=gemini_model,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    temperature=0.1
+                )
+            )
+            return json.loads(res.text)
+        except Exception as e:
+            print(f"[Workflow Engine Gemini Error]: {e}")
+
+    client = _get_groq_client()
+    if client:
+        try:
+            response = client.chat.completions.create(
+                model="openai/gpt-oss-20b",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.1,
+                response_format={"type": "json_object"}
+            )
+            raw_text = response.choices[0].message.content
+            return json.loads(raw_text)
+        except Exception as e:
+            print(f"[Workflow Engine Groq Error]: {e}")
+
+    return {"is_match": False, "intent": "error", "confidence": 0.0}
+
 def evaluate_email_against_workflow(email_item: dict, workflow: dict) -> dict:
     """
     Avalua mitjançant IA si un correu rebut compleix les condicions d'un flux asíncron pendent
     i determina quina acció executiva cal emprendre.
     """
-    client = _get_groq_client()
-    if not client:
-        return {"is_match": False, "intent": "no_llm", "confidence": 0.0}
-
     sender = email_item.get("sender", "")
     subject = email_item.get("subject", "")
     body = email_item.get("body", "")
@@ -75,19 +108,7 @@ Retorna UNICAMENT un objecte JSON amb aquest format exacte (sense blocs de text 
   "recommended_action": "complete_and_execute" | "create_followup_task" | "continue_waiting" | "ignore"
 }}
 """
-
-    try:
-        response = client.chat.completions.create(
-            model="openai/gpt-oss-20b",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.1,
-            response_format={"type": "json_object"}
-        )
-        raw_text = response.choices[0].message.content
-        return json.loads(raw_text)
-    except Exception as e:
-        print(f"[Workflow Engine LLM Error]: {e}")
-        return {"is_match": False, "intent": "error", "error": str(e), "confidence": 0.0}
+    return _get_workflow_evaluation(prompt)
 
 def execute_workflow_action(workflow: dict, evaluation: dict, trigger_item: dict) -> dict:
     """Executa l'acció configurada per al flux quan el trigger es compleix."""

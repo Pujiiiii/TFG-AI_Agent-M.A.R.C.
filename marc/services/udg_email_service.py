@@ -104,10 +104,27 @@ def sync_imap_udg_emails():
 
     return nous_trobats
 
-def extract_json_from_llm_response(text: str) -> dict:
+def extract_text_from_content(content) -> str:
+    """Extreu el text net d'una resposta de model."""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for p in content:
+            if isinstance(p, dict) and p.get("type") == "text":
+                parts.append(p.get("text", ""))
+            elif isinstance(p, dict) and "text" in p:
+                parts.append(p["text"])
+            elif isinstance(p, str):
+                parts.append(p)
+        return "".join(parts)
+    return str(content)
+
+def extract_json_from_llm_response(text) -> dict:
     """Neteja i extreu l'objecte JSON de la resposta del model."""
+    text_str = extract_text_from_content(text)
     try:
-        clean = text.strip()
+        clean = text_str.strip()
         if "```json" in clean:
             clean = clean.split("```json")[1].split("```")[0].strip()
         elif "```" in clean:
@@ -115,7 +132,7 @@ def extract_json_from_llm_response(text: str) -> dict:
         return json.loads(clean)
     except Exception:
         # Intent d'extracció per expressió regular
-        match = re.search(r'\{.*\}', text, re.DOTALL)
+        match = re.search(r'\{.*\}', text_str, re.DOTALL)
         if match:
             try:
                 return json.loads(match.group(0))
@@ -123,13 +140,28 @@ def extract_json_from_llm_response(text: str) -> dict:
                 pass
         return {}
 
-def analyze_single_udg_email(em: dict, llm: ChatGroq = None) -> dict:
+def get_udg_llm():
+    """Retorna el model d'IA configurat (Google Gemini preferit o fallback a Groq)."""
+    google_key = os.getenv("GOOGLE_API_KEY")
+    if google_key:
+        from langchain_google_genai import ChatGoogleGenerativeAI
+        gemini_model = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite")
+        return ChatGoogleGenerativeAI(
+            model=gemini_model,
+            google_api_key=google_key,
+            temperature=0.1
+        )
+    else:
+        from langchain_groq import ChatGroq
+        return ChatGroq(model="openai/gpt-oss-20b", temperature=0.1)
+
+def analyze_single_udg_email(em: dict, llm = None) -> dict:
     """
     Analitza un correu de la UdG amb LLM, dedueix tasques, terminis de lliurament o exàmens
     i executa les accions pertinents a la base de dades i al calendari.
     """
     if llm is None:
-        llm = ChatGroq(model="openai/gpt-oss-20b", temperature=0.1)
+        llm = get_udg_llm()
 
     ara_str = datetime.now().strftime("%Y-%m-%d %H:%M")
 
@@ -274,7 +306,7 @@ def process_all_pending_udg_emails() -> dict:
             "message": "🎓 No hi ha cap correu nou pendent d'analitzar de la Universitat de Girona (UdG) o Moodle. Tot al dia!"
         }
 
-    llm = ChatGroq(model="openai/gpt-oss-20b", temperature=0.1)
+    llm = get_udg_llm()
     results = []
     total_tasks = 0
     total_events = 0

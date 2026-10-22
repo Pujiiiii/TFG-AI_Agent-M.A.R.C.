@@ -133,7 +133,11 @@ def xat(peticio: ChatRequest):
     except groq.RateLimitError:
         output_text = "⚠️ **Límit d'ús assolit (Rate Limit 429)**. Si us plau, espera uns segons i torna a provar-ho."
     except Exception as e:
-        output_text = f"⚠️ S'ha produït un error processant la petició: {str(e)}"
+        err_str = str(e)
+        if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str or "RateLimit" in type(e).__name__:
+            output_text = "⚠️ **Límit d'ús assolit (Rate Limit 429)**. Si us plau, espera uns segons i torna a provar-ho."
+        else:
+            output_text = f"⚠️ S'ha produït un error processant la petició: {err_str}"
 
     # Persistència de la resposta de M.A.R.C. a SQLite
     try:

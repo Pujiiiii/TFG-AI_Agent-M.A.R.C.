@@ -21,7 +21,7 @@
 ## 🛠️ Arquitectura Tècnica
 * **Backend**: FastAPI + Python 3.12+
 * **Orquestració d'Agents**: LangChain (`create_tool_calling_agent`, `AgentExecutor`, `RunnableWithMessageHistory`)
-* **LLM Engine**: Groq API (models oberts d'alta velocitat)
+* **LLM Engine**: Google Gemini API (recomanat, alta precisió i suport nadiu de tool calling) o Groq API
 * **Persistència de Dades**: Base de dades local **SQLite** (`data/marc.db`)
 * **Frontend**: HUD / Cyberpunk Dark Terminal (HTML5, Vanilla CSS3, JavaScript modern amb Marked.js i Highlight.js)
 * **Cerca**: SearXNG sobre contenidor Docker local (port 8080)
@@ -44,6 +44,11 @@ pip install -r requirements.txt
 ### 3. Configuració d'Entorn (`.env`)
 Crea o edita el fitxer `.env` a l'arrel del repositori:
 ```env
+# Google Gemini (motor principal de M.A.R.C.)
+GOOGLE_API_KEY=la_teva_clau_google_ai_studio
+GEMINI_MODEL=gemini-3.1-flash-lite
+
+# Groq (opcional, com a alternativa)
 GROQ_API_KEY=el_teu_groq_api_key
 
 # (Opcional) Per a lectura i enviament de correus reals (Gmail / Outlook):
